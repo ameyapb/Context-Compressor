@@ -31,6 +31,7 @@
     "vscode": "^1.74.0"
   },
   "categories": ["Productivity"],
+  "activationEvents": [],
   "main": "./src/extension.js",
   "contributes": {
     "viewsContainers": {

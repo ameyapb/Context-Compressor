@@ -81,6 +81,6 @@ Key design points:
 - **Token counting** calls `encode(text).length` from `gpt-tokenizer` — synchronous, no API calls.
 - **Live updates** are debounced 300ms on `onDidChangeTextDocument` to avoid recomputing on every keystroke.
 - **Folder token count** is triggered from the Explorer right-click menu. Progress is shown via `vscode.window.withProgress` during async file traversal.
-- **Activation** — `activationEvents` should be removed from `package.json`; VS Code 1.74+ infers activation from `contributes` entries. The `"*"` value (activates on every workspace open) is deprecated.
+- **Activation** — `activationEvents` is set to `[]` in `package.json`. VS Code 1.74+ infers activation events from `contributes` entries automatically; an explicit `"*"` (activates on every workspace open) is deprecated and must not be used.
 
 The extension has no settings, no configuration, and no output channel — all output goes through the status bar, `showInformationMessage`, or the sidebar panel.

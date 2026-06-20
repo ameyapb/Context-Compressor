@@ -3,5 +3,8 @@ node_modules/**
 .gitignore
 .vscodeignore
 PLAN.md
+CLAUDE.md
 test/**
 .vscode/**
+.claude/**
+*.vsix
