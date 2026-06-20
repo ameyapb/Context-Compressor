@@ -1,4 +1,5 @@
 const vscode = require('vscode');
+const { readFileAsText } = require('./fileReader');
 
 const IGNORED_DIRECTORY_NAMES = new Set(['node_modules', '.git', 'dist', 'build', 'out', '.vscode']);
 
@@ -34,14 +35,12 @@ async function collectFileUris(uri, visited = new Set()) {
 }
 
 async function countTokensInUri(uri, encoderFn) {
-  try {
-    const bytes = await vscode.workspace.fs.readFile(uri);
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    return encoderFn(text).length;
-  } catch (e) {
-    console.warn(`context-compressor: skipping ${uri.fsPath}: ${e.message}`);
+  const text = await readFileAsText(uri);
+  if (text === null) {
+    console.warn(`context-compressor: skipping ${uri.fsPath}: binary or unreadable`);
     return 0;
   }
+  return encoderFn(text).length;
 }
 
 async function countTokensInUris(uris, encoderFn) {

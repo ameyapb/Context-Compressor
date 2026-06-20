@@ -216,7 +216,6 @@ function activate(context) {
       const currentModeId = getCompressionModeId();
       const items = COMPRESSION_MODES.map((mode) => ({
         ...mode,
-        label: mode.label,
         picked: mode.id === currentModeId,
       }));
       const selected = await vscode.window.showQuickPick(items, {

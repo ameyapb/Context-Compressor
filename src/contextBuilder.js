@@ -1,24 +1,16 @@
 const vscode = require('vscode');
 const path = require('path');
 const { compress, getLanguageTag, COMPRESSION_MODE_NONE } = require('./compressor');
+const { readFileAsText } = require('./fileReader');
 
-let contextFiles = []; // { uri: vscode.Uri, tokenCount: number, included: boolean }[]
+let contextFiles = [];
 let compressionModeId = COMPRESSION_MODE_NONE;
 let encoderFn = null;
 
 const onDidChangeTreeDataEmitter = new vscode.EventEmitter();
 
-async function readFileText(uri) {
-  try {
-    const bytes = await vscode.workspace.fs.readFile(uri);
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch {
-    return null;
-  }
-}
-
 async function computeFileTokenCount(uri) {
-  const text = await readFileText(uri);
+  const text = await readFileAsText(uri);
   if (text === null) return 0;
   const compressed = compress(text, uri.fsPath, compressionModeId);
   return encoderFn(compressed).length;
@@ -68,6 +60,13 @@ function notifyTreeChanged() {
   onDidChangeTreeDataEmitter.fire(undefined);
 }
 
+async function recomputeAllTokenCounts() {
+  contextFiles = await Promise.all(
+    contextFiles.map(async (f) => ({ ...f, tokenCount: await computeFileTokenCount(f.uri) }))
+  );
+  notifyTreeChanged();
+}
+
 function initialize(encFn) {
   encoderFn = encFn;
   compressionModeId = COMPRESSION_MODE_NONE;
@@ -100,20 +99,12 @@ function clearAllContext() {
 
 async function applyCompressionMode(newModeId) {
   compressionModeId = newModeId;
-  const recounted = await Promise.all(
-    contextFiles.map(async (f) => ({ ...f, tokenCount: await computeFileTokenCount(f.uri) }))
-  );
-  contextFiles = recounted;
-  notifyTreeChanged();
+  await recomputeAllTokenCounts();
 }
 
 async function applyNewEncoder(newEncoderFn) {
   encoderFn = newEncoderFn;
-  const recounted = await Promise.all(
-    contextFiles.map(async (f) => ({ ...f, tokenCount: await computeFileTokenCount(f.uri) }))
-  );
-  contextFiles = recounted;
-  notifyTreeChanged();
+  await recomputeAllTokenCounts();
 }
 
 function handleCheckboxStateChange(items) {
@@ -143,7 +134,7 @@ async function assemblePromptText() {
   const includedFiles = contextFiles.filter((f) => f.included);
   const parts = [];
   for (const fileEntry of includedFiles) {
-    const text = await readFileText(fileEntry.uri);
+    const text = await readFileAsText(fileEntry.uri);
     if (!text || text.trim() === '') continue;
     const compressed = compress(text, fileEntry.uri.fsPath, compressionModeId);
     if (compressed.trim() === '') continue;

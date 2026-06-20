@@ -28,60 +28,42 @@ const COMPRESSION_MODES = [
   },
 ];
 
-const EXTENSION_TO_LANGUAGE = {
-  '.js': 'javascript',
-  '.mjs': 'javascript',
-  '.cjs': 'javascript',
-  '.ts': 'javascript',
-  '.tsx': 'javascript',
-  '.jsx': 'javascript',
-  '.py': 'python',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.c': 'c',
-  '.cpp': 'c',
-  '.cc': 'c',
-  '.h': 'c',
-  '.hpp': 'c',
-  '.java': 'java',
-};
-
-const EXTENSION_TO_LANGUAGE_TAG = {
-  '.js': 'js',
-  '.mjs': 'js',
-  '.cjs': 'js',
-  '.ts': 'ts',
-  '.tsx': 'tsx',
-  '.jsx': 'jsx',
-  '.py': 'python',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.c': 'c',
-  '.cpp': 'cpp',
-  '.cc': 'cpp',
-  '.h': 'c',
-  '.hpp': 'cpp',
-  '.java': 'java',
-  '.json': 'json',
-  '.md': 'md',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.sh': 'sh',
-  '.bash': 'sh',
-  '.css': 'css',
-  '.html': 'html',
-  '.xml': 'xml',
-  '.sql': 'sql',
+const EXTENSION_METADATA = {
+  '.js':   { language: 'javascript', tag: 'js' },
+  '.mjs':  { language: 'javascript', tag: 'js' },
+  '.cjs':  { language: 'javascript', tag: 'js' },
+  '.ts':   { language: 'javascript', tag: 'ts' },
+  '.tsx':  { language: 'javascript', tag: 'tsx' },
+  '.jsx':  { language: 'javascript', tag: 'jsx' },
+  '.py':   { language: 'python',     tag: 'python' },
+  '.go':   { language: 'go',         tag: 'go' },
+  '.rs':   { language: 'rust',       tag: 'rust' },
+  '.c':    { language: 'c',          tag: 'c' },
+  '.cpp':  { language: 'c',          tag: 'cpp' },
+  '.cc':   { language: 'c',          tag: 'cpp' },
+  '.h':    { language: 'c',          tag: 'c' },
+  '.hpp':  { language: 'c',          tag: 'cpp' },
+  '.java': { language: 'java',       tag: 'java' },
+  '.json': { language: 'unknown',    tag: 'json' },
+  '.md':   { language: 'unknown',    tag: 'md' },
+  '.yaml': { language: 'unknown',    tag: 'yaml' },
+  '.yml':  { language: 'unknown',    tag: 'yaml' },
+  '.sh':   { language: 'unknown',    tag: 'sh' },
+  '.bash': { language: 'unknown',    tag: 'sh' },
+  '.css':  { language: 'unknown',    tag: 'css' },
+  '.html': { language: 'unknown',    tag: 'html' },
+  '.xml':  { language: 'unknown',    tag: 'xml' },
+  '.sql':  { language: 'unknown',    tag: 'sql' },
 };
 
 function detectLanguage(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  return EXTENSION_TO_LANGUAGE[ext] ?? 'unknown';
+  return EXTENSION_METADATA[ext]?.language ?? 'unknown';
 }
 
 function getLanguageTag(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  return EXTENSION_TO_LANGUAGE_TAG[ext] ?? '';
+  return EXTENSION_METADATA[ext]?.tag ?? '';
 }
 
 function normalizeBlankLines(text) {
@@ -143,7 +125,7 @@ function extractPythonSignatures(text) {
     }
   }
 
-  return outputLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return normalizeBlankLines(outputLines.join('\n'));
 }
 
 const BRACE_SIGNATURE_PATTERNS = [
@@ -192,7 +174,7 @@ function extractBraceLanguageSignatures(text) {
     braceDepth += opens - closes;
   }
 
-  return outputLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return normalizeBlankLines(outputLines.join('\n'));
 }
 
 function compress(text, filePath, compressionModeId) {
@@ -221,9 +203,6 @@ function compress(text, filePath, compressionModeId) {
 module.exports = {
   COMPRESSION_MODES,
   COMPRESSION_MODE_NONE,
-  COMPRESSION_MODE_STRIP_COMMENTS,
-  COMPRESSION_MODE_COLLAPSE_WHITESPACE,
-  COMPRESSION_MODE_SIGNATURES_ONLY,
   compress,
   getLanguageTag,
 };
