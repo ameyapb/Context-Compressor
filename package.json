@@ -1,6 +1,6 @@
 {
-  "name": "context-compressor",
-  "displayName": "Context Compressor",
+  "name": "token-budget-builder",
+  "displayName": "Token Budget Builder",
   "description": "Assemble, compress, and copy multi-file prompts — with live token budget for any model",
   "version": "0.1.0",
   "publisher": "Uchiha-Labs",
@@ -37,16 +37,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "context-compressor-sidebar",
+          "id": "token-budget-builder-sidebar",
           "title": "Context Compressor",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "context-compressor-sidebar": [
+      "token-budget-builder-sidebar": [
         {
-          "id": "context-compressor-files",
+          "id": "token-budget-builder-files",
           "name": "Context Files",
           "checkboxes": true
         }
@@ -54,45 +54,45 @@
     },
     "viewsWelcome": [
       {
-        "view": "context-compressor-files",
-        "contents": "No files in context yet.\n\nRight-click any file or folder in the Explorer and choose **Add to Context**, or use the button above to browse.\n\n[Add Files](command:context-compressor.addToContext)"
+        "view": "token-budget-builder-files",
+        "contents": "No files in context yet.\n\nRight-click any file or folder in the Explorer and choose **Add to Context**, or use the button above to browse.\n\n[Add Files](command:token-budget-builder.addToContext)"
       }
     ],
     "commands": [
       {
-        "command": "context-compressor.countTokens",
+        "command": "token-budget-builder.countTokens",
         "title": "Context Compressor: Count Tokens in File"
       },
       {
-        "command": "context-compressor.selectModel",
+        "command": "token-budget-builder.selectModel",
         "title": "Context Compressor: Select Model"
       },
       {
-        "command": "context-compressor.countFolderTokens",
+        "command": "token-budget-builder.countFolderTokens",
         "title": "Context Compressor: Count Tokens in Selection"
       },
       {
-        "command": "context-compressor.addToContext",
+        "command": "token-budget-builder.addToContext",
         "title": "Add to Context",
         "icon": "$(add)"
       },
       {
-        "command": "context-compressor.removeFromContext",
+        "command": "token-budget-builder.removeFromContext",
         "title": "Remove from Context",
         "icon": "$(trash)"
       },
       {
-        "command": "context-compressor.clearContext",
+        "command": "token-budget-builder.clearContext",
         "title": "Clear Context",
         "icon": "$(clear-all)"
       },
       {
-        "command": "context-compressor.setCompressionMode",
+        "command": "token-budget-builder.setCompressionMode",
         "title": "Set Compression Mode",
         "icon": "$(settings-gear)"
       },
       {
-        "command": "context-compressor.assemblePrompt",
+        "command": "token-budget-builder.assemblePrompt",
         "title": "Assemble & Copy Prompt",
         "icon": "$(copy)"
       }
@@ -100,40 +100,40 @@
     "menus": {
       "explorer/context": [
         {
-          "command": "context-compressor.addToContext",
+          "command": "token-budget-builder.addToContext",
           "group": "z_contextcompressor@1"
         },
         {
-          "command": "context-compressor.countFolderTokens",
+          "command": "token-budget-builder.countFolderTokens",
           "group": "z_contextcompressor@2"
         }
       ],
       "view/title": [
         {
-          "command": "context-compressor.assemblePrompt",
-          "when": "view == context-compressor-files",
+          "command": "token-budget-builder.assemblePrompt",
+          "when": "view == token-budget-builder-files",
           "group": "navigation@1"
         },
         {
-          "command": "context-compressor.addToContext",
-          "when": "view == context-compressor-files",
+          "command": "token-budget-builder.addToContext",
+          "when": "view == token-budget-builder-files",
           "group": "navigation@2"
         },
         {
-          "command": "context-compressor.setCompressionMode",
-          "when": "view == context-compressor-files",
+          "command": "token-budget-builder.setCompressionMode",
+          "when": "view == token-budget-builder-files",
           "group": "navigation@3"
         },
         {
-          "command": "context-compressor.clearContext",
-          "when": "view == context-compressor-files",
+          "command": "token-budget-builder.clearContext",
+          "when": "view == token-budget-builder-files",
           "group": "navigation@4"
         }
       ],
       "view/item/context": [
         {
-          "command": "context-compressor.removeFromContext",
-          "when": "view == context-compressor-files && viewItem == contextFile",
+          "command": "token-budget-builder.removeFromContext",
+          "when": "view == token-budget-builder-files && viewItem == contextFile",
           "group": "inline"
         }
       ]

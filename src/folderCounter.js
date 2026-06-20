@@ -37,7 +37,7 @@ async function collectFileUris(uri, visited = new Set()) {
 async function countTokensInUri(uri, encoderFn) {
   const text = await readFileAsText(uri);
   if (text === null) {
-    console.warn(`context-compressor: skipping ${uri.fsPath}: binary or unreadable`);
+    console.warn(`token-budget-builder: skipping ${uri.fsPath}: binary or unreadable`);
     return 0;
   }
   return encoderFn(text).length;

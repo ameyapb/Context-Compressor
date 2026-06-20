@@ -17,7 +17,7 @@ const {
 } = require('./contextBuilder');
 const { COMPRESSION_MODES } = require('./compressor');
 
-const GLOBAL_STATE_MODEL_KEY = 'context-compressor.selectedModelId';
+const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const STATUS_BAR_PRIORITY = 100;
 const DEBOUNCE_DELAY_MS = 300;
 
@@ -64,11 +64,11 @@ function activate(context) {
     vscode.StatusBarAlignment.Right,
     STATUS_BAR_PRIORITY
   );
-  statusBarItem.command = 'context-compressor.countTokens';
+  statusBarItem.command = 'token-budget-builder.countTokens';
   context.subscriptions.push(statusBarItem);
 
   const contextFileTreeProvider = new ContextFileTreeProvider();
-  treeView = vscode.window.createTreeView('context-compressor-files', {
+  treeView = vscode.window.createTreeView('token-budget-builder-files', {
     treeDataProvider: contextFileTreeProvider,
     showCollapseAll: false,
     manageCheckboxStateManually: false,
@@ -87,7 +87,7 @@ function activate(context) {
   );
 
   const countTokensCommand = vscode.commands.registerCommand(
-    'context-compressor.countTokens',
+    'token-budget-builder.countTokens',
     () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
@@ -104,7 +104,7 @@ function activate(context) {
   context.subscriptions.push(countTokensCommand);
 
   const selectModelCommand = vscode.commands.registerCommand(
-    'context-compressor.selectModel',
+    'token-budget-builder.selectModel',
     async () => {
       const selected = await vscode.window.showQuickPick(SUPPORTED_MODELS, {
         placeHolder: 'Select model for token counting',
@@ -119,7 +119,7 @@ function activate(context) {
   context.subscriptions.push(selectModelCommand);
 
   const countFolderTokensCommand = vscode.commands.registerCommand(
-    'context-compressor.countFolderTokens',
+    'token-budget-builder.countFolderTokens',
     async (uri, selectedUris) => {
       const targetUris = selectedUris && selectedUris.length > 0
         ? selectedUris
@@ -144,7 +144,7 @@ function activate(context) {
         );
       } catch (error) {
         vscode.window.showErrorMessage(
-          `Context Compressor: failed to count tokens — ${error.message}`
+          `Prompt Context Builder: failed to count tokens — ${error.message}`
         );
       }
     }
@@ -152,7 +152,7 @@ function activate(context) {
   context.subscriptions.push(countFolderTokensCommand);
 
   const addToContextCommand = vscode.commands.registerCommand(
-    'context-compressor.addToContext',
+    'token-budget-builder.addToContext',
     async (uri, selectedUris) => {
       let targetUris;
       if (selectedUris && selectedUris.length > 0) {
@@ -192,7 +192,7 @@ function activate(context) {
   context.subscriptions.push(addToContextCommand);
 
   const removeFromContextCommand = vscode.commands.registerCommand(
-    'context-compressor.removeFromContext',
+    'token-budget-builder.removeFromContext',
     (item) => {
       if (!item || !item.uriString) return;
       removeFileFromContext(item.uriString);
@@ -202,7 +202,7 @@ function activate(context) {
   context.subscriptions.push(removeFromContextCommand);
 
   const clearContextCommand = vscode.commands.registerCommand(
-    'context-compressor.clearContext',
+    'token-budget-builder.clearContext',
     () => {
       clearAllContext();
       refreshContextDisplay();
@@ -211,7 +211,7 @@ function activate(context) {
   context.subscriptions.push(clearContextCommand);
 
   const setCompressionModeCommand = vscode.commands.registerCommand(
-    'context-compressor.setCompressionMode',
+    'token-budget-builder.setCompressionMode',
     async () => {
       const currentModeId = getCompressionModeId();
       const items = COMPRESSION_MODES.map((mode) => ({
@@ -236,7 +236,7 @@ function activate(context) {
   context.subscriptions.push(setCompressionModeCommand);
 
   const assemblePromptCommand = vscode.commands.registerCommand(
-    'context-compressor.assemblePrompt',
+    'token-budget-builder.assemblePrompt',
     async () => {
       const model = getModelById(currentModelId);
       const totalTokens = getTotalIncludedTokens();

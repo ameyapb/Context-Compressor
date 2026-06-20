@@ -77,7 +77,7 @@ The extension is split across six modules under `src/`:
 
 Key design points:
 
-- **Status bar item** is created on `activate` and shows a live token count with a `$(symbol-numeric)` icon. Clicking it triggers `context-compressor.countTokens`, which shows the count as an information message.
+- **Status bar item** is created on `activate` and shows a live token count with a `$(symbol-numeric)` icon. Clicking it triggers `token-budget-builder.countTokens`, which shows the count as an information message.
 - **Token counting** calls `encode(text).length` from `gpt-tokenizer` — synchronous, no API calls.
 - **Live updates** are debounced 300ms on `onDidChangeTextDocument` to avoid recomputing on every keystroke.
 - **Folder token count** is triggered from the Explorer right-click menu. Progress is shown via `vscode.window.withProgress` during async file traversal.
