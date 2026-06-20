@@ -1,17 +1,23 @@
 const vscode = require('vscode');
-const { encode } = require('gpt-tokenizer');
+const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } = require('./models');
+
+const GLOBAL_STATE_MODEL_KEY = 'context-compressor.selectedModelId';
+const STATUS_BAR_PRIORITY = 100;
+const DEBOUNCE_DELAY_MS = 300;
 
 let statusBarItem;
 let debounceTimer;
+let currentModelId;
 
 function countTokens(text) {
-  return encode(text).length;
+  return getEncoderForModel(currentModelId)(text).length;
 }
 
 function updateStatusBar(text) {
   const count = countTokens(text);
+  const model = getModelById(currentModelId);
   statusBarItem.text = `$(symbol-numeric) ${count.toLocaleString()} tokens`;
-  statusBarItem.tooltip = `GPT-4 token count (cl100k_base)`;
+  statusBarItem.tooltip = `Token count for ${model.label} (${model.encoding})`;
   statusBarItem.show();
 }
 
@@ -25,16 +31,18 @@ function refreshFromActiveEditor() {
 }
 
 function activate(context) {
+  currentModelId = context.globalState.get(GLOBAL_STATE_MODEL_KEY, DEFAULT_MODEL_ID);
+
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
-    100
+    STATUS_BAR_PRIORITY
   );
   statusBarItem.command = 'context-compressor.countTokens';
   context.subscriptions.push(statusBarItem);
 
   refreshFromActiveEditor();
 
-  const command = vscode.commands.registerCommand(
+  const countTokensCommand = vscode.commands.registerCommand(
     'context-compressor.countTokens',
     () => {
       const editor = vscode.window.activeTextEditor;
@@ -43,12 +51,27 @@ function activate(context) {
         return;
       }
       const count = countTokens(editor.document.getText());
+      const model = getModelById(currentModelId);
       vscode.window.showInformationMessage(
-        `Token count: ${count.toLocaleString()} (cl100k_base / GPT-4)`
+        `Token count: ${count.toLocaleString()} (${model.label})`
       );
     }
   );
-  context.subscriptions.push(command);
+  context.subscriptions.push(countTokensCommand);
+
+  const selectModelCommand = vscode.commands.registerCommand(
+    'context-compressor.selectModel',
+    async () => {
+      const selected = await vscode.window.showQuickPick(SUPPORTED_MODELS, {
+        placeHolder: 'Select model for token counting',
+      });
+      if (!selected) return;
+      currentModelId = selected.id;
+      await context.globalState.update(GLOBAL_STATE_MODEL_KEY, currentModelId);
+      refreshFromActiveEditor();
+    }
+  );
+  context.subscriptions.push(selectModelCommand);
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(() => refreshFromActiveEditor())
@@ -62,7 +85,7 @@ function activate(context) {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         updateStatusBar(event.document.getText());
-      }, 300);
+      }, DEBOUNCE_DELAY_MS);
     })
   );
 }

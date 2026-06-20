@@ -14,7 +14,11 @@
     "commands": [
       {
         "command": "context-compressor.countTokens",
-        "title": "Count Tokens in File"
+        "title": "Context Compressor: Count Tokens in File"
+      },
+      {
+        "command": "context-compressor.selectModel",
+        "title": "Context Compressor: Select Model"
       }
     ]
   },
