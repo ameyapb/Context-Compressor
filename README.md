@@ -1,8 +1,8 @@
-# Context Compressor
+# Token Budget Builder
 
 Assemble, compress, and copy multi-file prompts — with a live token budget for any model.
 
-Instead of copying files into a chat window and guessing whether you fit under the context limit, Context Compressor lets you pick the files that matter, compress them locally to reduce token usage, and copy a clean formatted prompt to the clipboard in one click. No API keys. Everything runs locally.
+Instead of copying files into a chat window and guessing whether you fit under the context limit, Token Budget Builder lets you pick the files that matter, compress them locally to reduce token usage, and copy a clean formatted prompt to the clipboard in one click. No API keys. Everything runs locally.
 
 ## Features
 
@@ -16,15 +16,15 @@ Instead of copying files into a chat window and guessing whether you fit under t
 
 ## How to Use
 
-1. Open the **Context Compressor** panel in the Activity Bar.
+1. Open the **Token Budget Builder** panel in the Activity Bar.
 2. Right-click files or folders in the Explorer and choose **Add to Context**, or use the **+** button in the panel toolbar.
 3. Check or uncheck files to include or exclude them. The token count updates in real time.
 4. Pick a compression mode via the gear icon if you need to reduce token usage.
 5. Click the copy icon to assemble all included files and copy the prompt to your clipboard.
 
-To count tokens in a file or folder without adding it to context, right-click in the Explorer and choose **Context Compressor: Count Tokens in Selection**.
+To count tokens in a file or folder without adding it to context, right-click in the Explorer and choose **Token Budget Builder: Count Tokens in Selection**.
 
-To switch model, run **Context Compressor: Select Model** from the Command Palette. The selection is saved across sessions.
+To switch model, run **Token Budget Builder: Select Model** from the Command Palette. The selection is saved across sessions.
 
 ## Compression Modes
 
