@@ -30,7 +30,7 @@
   "engines": {
     "vscode": "^1.74.0"
   },
-  "categories": ["Productivity"],
+  "categories": ["Other"],
   "activationEvents": [],
   "main": "./src/extension.js",
   "contributes": {
