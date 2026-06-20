@@ -49,11 +49,18 @@ These apply to all code in this repository, no exceptions.
 
 ## Architecture
 
-The entire extension lives in [src/extension.js](src/extension.js). Key design points:
+The extension is split across three modules under `src/`:
+
+- **[src/extension.js](src/extension.js)** — activation, command registration, status bar lifecycle. The only file that imports `vscode`. Registers three commands: `countTokens`, `selectModel`, `countFolderTokens`.
+- **[src/models.js](src/models.js)** — model definitions and encoder resolution. Exports `SUPPORTED_MODELS`, `DEFAULT_MODEL_ID`, `getEncoderForModel`, and `getModelById`. No VS Code dependency.
+- **[src/folderCounter.js](src/folderCounter.js)** — recursive file collection and aggregate token counting for the Explorer context menu command. Uses `vscode.workspace.fs` to read directories and files. Binary files are skipped silently (UTF-8 decode failure returns 0). Overlapping selections (e.g. a folder and a file inside it) are deduplicated by URI.
+
+Key design points:
 
 - **Status bar item** is created on `activate` and shows a live token count with a `$(symbol-numeric)` icon. Clicking it triggers `context-compressor.countTokens`, which shows the count as an information message.
 - **Token counting** calls `encode(text).length` from `gpt-tokenizer` — synchronous, no API calls.
 - **Live updates** are debounced 300ms on `onDidChangeTextDocument` to avoid recomputing on every keystroke.
+- **Folder token count** is triggered from the Explorer right-click menu. Progress is shown via `vscode.window.withProgress` during async file traversal.
 - **`activationEvents: ["*"]`** means the extension activates for every workspace, not lazily on command.
 
 The extension has no settings, no configuration, and no output channel — all output goes through the status bar or `showInformationMessage`.

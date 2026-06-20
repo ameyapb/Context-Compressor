@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } = require('./models');
+const { countTokensInUris } = require('./folderCounter');
 
 const GLOBAL_STATE_MODEL_KEY = 'context-compressor.selectedModelId';
 const STATUS_BAR_PRIORITY = 100;
@@ -72,6 +73,31 @@ function activate(context) {
     }
   );
   context.subscriptions.push(selectModelCommand);
+
+  const countFolderTokensCommand = vscode.commands.registerCommand(
+    'context-compressor.countFolderTokens',
+    async (uri, selectedUris) => {
+      const targetUris = selectedUris && selectedUris.length > 0 ? selectedUris : [uri];
+      if (!targetUris || targetUris.length === 0) {
+        vscode.window.showInformationMessage('No files or folders selected.');
+        return;
+      }
+      const encoderFn = getEncoderForModel(currentModelId);
+      const model = getModelById(currentModelId);
+      const { totalTokenCount, fileCount } = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Counting tokens...',
+          cancellable: false,
+        },
+        () => countTokensInUris(targetUris, encoderFn)
+      );
+      vscode.window.showInformationMessage(
+        `Total: ${totalTokenCount.toLocaleString()} tokens across ${fileCount} file${fileCount === 1 ? '' : 's'} (${model.label})`
+      );
+    }
+  );
+  context.subscriptions.push(countFolderTokensCommand);
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(() => refreshFromActiveEditor())

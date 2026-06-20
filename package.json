@@ -19,8 +19,20 @@
       {
         "command": "context-compressor.selectModel",
         "title": "Context Compressor: Select Model"
+      },
+      {
+        "command": "context-compressor.countFolderTokens",
+        "title": "Context Compressor: Count Tokens"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "context-compressor.countFolderTokens",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "dependencies": {
     "gpt-tokenizer": "^2.1.2"
