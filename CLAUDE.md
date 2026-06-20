@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A VS Code extension that displays a real-time GPT-4 token count for the active file in the status bar. It uses the `cl100k_base` encoding (via `gpt-tokenizer`) — the same encoding used by GPT-4 and Claude's tokenizer approximations.
+A VS Code extension for assembling, compressing, and copying multi-file prompts with a live token budget for any supported model. It shows a real-time token count in the status bar and provides a sidebar panel to select files, apply local compression, and copy a formatted prompt to the clipboard. Token counting uses `gpt-tokenizer` with `cl100k_base` (GPT-4 family) or `o200k_base` (GPT-4o / o1 family) depending on the selected model.
 
 ## Development
 
@@ -20,6 +20,21 @@ Press `F5` in VS Code, or use the "Run Extension" launch configuration in [.vsco
 ```
 npx vsce package
 ```
+
+**Publish to the VS Code Marketplace:**
+```
+npx vsce publish
+```
+Requires a Personal Access Token from https://marketplace.visualstudio.com/manage. The `publisher` field in `package.json` must match your registered publisher ID.
+
+**Pre-publish checklist:**
+- `publisher` in `package.json` is set to your actual publisher ID (not the placeholder).
+- `README.md` exists at the repo root — the Marketplace uses it as the extension listing page.
+- `media/icon.png` exists (128x128 PNG minimum) and `package.json` has `"icon": "media/icon.png"` — the Marketplace does not accept SVG for the thumbnail.
+- `LICENSE` file exists at the repo root.
+- `repository` and `keywords` fields are present in `package.json`.
+- `activationEvents` is removed from `package.json` (VS Code 1.74+ infers them from `contributes`; `"*"` is deprecated).
+- `.vscodeignore` excludes `PLAN.md`, `test/`, and `.vscode/`.
 
 There are no automated tests and no lint scripts defined.
 
@@ -51,13 +66,14 @@ These apply to all code in this repository, no exceptions.
 
 ## Architecture
 
-The extension is split across five modules under `src/`:
+The extension is split across six modules under `src/`:
 
-- **[src/extension.js](src/extension.js)** — activation, command registration, status bar lifecycle. The only file that imports `vscode`. Registers three commands: `countTokens`, `selectModel`, `countFolderTokens`.
+- **[src/extension.js](src/extension.js)** — activation, command registration, status bar lifecycle. The only file that imports `vscode`. Registers eight commands: `countTokens`, `selectModel`, `countFolderTokens`, `addToContext`, `removeFromContext`, `clearContext`, `setCompressionMode`, `assemblePrompt`.
 - **[src/models.js](src/models.js)** — model definitions and encoder resolution. Exports `SUPPORTED_MODELS`, `DEFAULT_MODEL_ID`, `getEncoderForModel`, and `getModelById`. No VS Code dependency.
+- **[src/fileReader.js](src/fileReader.js)** — shared utility for reading a VS Code URI as UTF-8 text. Exports `readFileAsText(uri)`, returning the file contents as a string or `null` on any error (binary, missing, or permission failure). Used by both `folderCounter.js` and `contextBuilder.js` to avoid duplicating the read-and-decode pattern.
 - **[src/folderCounter.js](src/folderCounter.js)** — recursive file collection and aggregate token counting for the Explorer context menu command. Uses `vscode.workspace.fs` to read directories and files. Binary files are skipped silently (UTF-8 decode failure returns 0). Overlapping selections (e.g. a folder and a file inside it) are deduplicated by URI.
 - **[src/contextBuilder.js](src/contextBuilder.js)** — manages the context file list shown in the sidebar tree view (`ContextFileTreeProvider`). Tracks which files are included, computes per-file token counts, handles checkbox state changes, and assembles the final prompt text with fenced code blocks. Depends on `compressor.js` for compression and `vscode` for the tree and filesystem APIs.
-- **[src/compressor.js](src/compressor.js)** — pure text compression logic with no VS Code dependency. Exports `compress(text, filePath, compressionModeId)` and `getLanguageTag(filePath)`. Supports four modes: `none`, `stripComments`, `collapseWhitespace`, and `signaturesOnly` (with separate extractors for Python and brace-language grammars).
+- **[src/compressor.js](src/compressor.js)** — pure text compression logic with no VS Code dependency. Exports `compress(text, filePath, compressionModeId)` and `getLanguageTag(filePath)`. Supports four modes: `none`, `stripComments`, `collapseWhitespace`, and `signaturesOnly` (with separate extractors for Python and brace-language grammars). Extension-to-language metadata is stored in a single `EXTENSION_METADATA` map shared by both `detectLanguage` and `getLanguageTag`.
 
 Key design points:
 
@@ -65,6 +81,6 @@ Key design points:
 - **Token counting** calls `encode(text).length` from `gpt-tokenizer` — synchronous, no API calls.
 - **Live updates** are debounced 300ms on `onDidChangeTextDocument` to avoid recomputing on every keystroke.
 - **Folder token count** is triggered from the Explorer right-click menu. Progress is shown via `vscode.window.withProgress` during async file traversal.
-- **`activationEvents: ["*"]`** means the extension activates for every workspace, not lazily on command.
+- **Activation** — `activationEvents` should be removed from `package.json`; VS Code 1.74+ infers activation from `contributes` entries. The `"*"` value (activates on every workspace open) is deprecated.
 
-The extension has no settings, no configuration, and no output channel — all output goes through the status bar or `showInformationMessage`.
+The extension has no settings, no configuration, and no output channel — all output goes through the status bar, `showInformationMessage`, or the sidebar panel.

@@ -2,3 +2,6 @@
 node_modules/**
 .gitignore
 .vscodeignore
+PLAN.md
+test/**
+.vscode/**

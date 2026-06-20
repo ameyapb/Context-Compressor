@@ -4,11 +4,33 @@
   "description": "Assemble, compress, and copy multi-file prompts — with live token budget for any model",
   "version": "0.1.0",
   "publisher": "your-publisher-name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ameyapb/context-compressor"
+  },
+  "bugs": {
+    "url": "https://github.com/ameyapb/context-compressor/issues"
+  },
+  "keywords": [
+    "token counter",
+    "llm",
+    "context",
+    "compression",
+    "prompt",
+    "gpt",
+    "claude",
+    "ai"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["*"],
+  "categories": ["Productivity"],
   "main": "./src/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -116,10 +138,14 @@
       ]
     }
   },
+  "scripts": {
+    "test": "mocha test/**/*.test.js"
+  },
   "dependencies": {
     "gpt-tokenizer": "^2.1.2"
   },
   "devDependencies": {
-    "@types/vscode": "^1.74.0"
+    "@types/vscode": "^1.74.0",
+    "mocha": "^11.0.0"
   }
 }
