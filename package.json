@@ -22,14 +22,14 @@
       },
       {
         "command": "context-compressor.countFolderTokens",
-        "title": "Context Compressor: Count Tokens"
+        "title": "Context Compressor: Count Tokens in Selection"
       }
     ],
     "menus": {
       "explorer/context": [
         {
           "command": "context-compressor.countFolderTokens",
-          "group": "navigation"
+          "group": "z_contextcompressor"
         }
       ]
     }

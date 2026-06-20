@@ -77,24 +77,28 @@ function activate(context) {
   const countFolderTokensCommand = vscode.commands.registerCommand(
     'context-compressor.countFolderTokens',
     async (uri, selectedUris) => {
-      const targetUris = selectedUris && selectedUris.length > 0 ? selectedUris : [uri];
-      if (!targetUris || targetUris.length === 0) {
+      const targetUris = selectedUris && selectedUris.length > 0 ? selectedUris : (uri ? [uri] : []);
+      if (targetUris.length === 0) {
         vscode.window.showInformationMessage('No files or folders selected.');
         return;
       }
       const encoderFn = getEncoderForModel(currentModelId);
       const model = getModelById(currentModelId);
-      const { totalTokenCount, fileCount } = await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Counting tokens...',
-          cancellable: false,
-        },
-        () => countTokensInUris(targetUris, encoderFn)
-      );
-      vscode.window.showInformationMessage(
-        `Total: ${totalTokenCount.toLocaleString()} tokens across ${fileCount} file${fileCount === 1 ? '' : 's'} (${model.label})`
-      );
+      try {
+        const { totalTokenCount, fileCount } = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Counting tokens...',
+            cancellable: false,
+          },
+          () => countTokensInUris(targetUris, encoderFn)
+        );
+        vscode.window.showInformationMessage(
+          `Total: ${totalTokenCount.toLocaleString()} tokens across ${fileCount} file${fileCount === 1 ? '' : 's'} (${model.label})`
+        );
+      } catch (error) {
+        vscode.window.showErrorMessage(`Context Compressor: failed to count tokens — ${error.message}`);
+      }
     }
   );
   context.subscriptions.push(countFolderTokensCommand);
