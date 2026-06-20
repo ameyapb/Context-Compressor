@@ -57,4 +57,4 @@ async function countTokensInUris(uris, encoderFn) {
   return { totalTokenCount, fileCount: uniqueFileUris.length };
 }
 
-module.exports = { countTokensInUris };
+module.exports = { collectFileUris, countTokensInUris };

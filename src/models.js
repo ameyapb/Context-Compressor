@@ -12,30 +12,35 @@ const SUPPORTED_MODELS = [
     label: 'GPT-4o / GPT-4o mini',
     description: 'Latest OpenAI models: o200k_base encoding',
     encoding: ENCODING_O200K,
+    contextWindow: 128000,
   },
   {
     id: 'o1',
     label: 'o1 / o3',
     description: 'OpenAI reasoning models: o200k_base encoding',
     encoding: ENCODING_O200K,
+    contextWindow: 200000,
   },
   {
     id: 'gpt-4',
     label: 'GPT-4 / GPT-4 Turbo',
     description: 'GPT-4 family: cl100k_base encoding',
     encoding: ENCODING_CL100K,
+    contextWindow: 128000,
   },
   {
     id: 'gpt-3.5-turbo',
     label: 'GPT-3.5 Turbo',
     description: 'GPT-3.5 family: cl100k_base encoding',
     encoding: ENCODING_CL100K,
+    contextWindow: 16385,
   },
   {
     id: 'claude',
     label: 'Claude (approximation)',
     description: 'Claude models: approximated via cl100k_base; not exact',
     encoding: ENCODING_CL100K,
+    contextWindow: 200000,
   },
 ];
 

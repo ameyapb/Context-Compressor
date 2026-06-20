@@ -1,8 +1,8 @@
 {
   "name": "context-compressor",
   "displayName": "Context Compressor",
-  "description": "Count GPT-4 tokens in the active file",
-  "version": "0.0.1",
+  "description": "Assemble, compress, and copy multi-file prompts — with live token budget for any model",
+  "version": "0.1.0",
   "publisher": "your-publisher-name",
   "engines": {
     "vscode": "^1.74.0"
@@ -11,6 +11,30 @@
   "activationEvents": ["*"],
   "main": "./src/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "context-compressor-sidebar",
+          "title": "Context Compressor",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "context-compressor-sidebar": [
+        {
+          "id": "context-compressor-files",
+          "name": "Context Files",
+          "checkboxes": true
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "context-compressor-files",
+        "contents": "No files in context yet.\n\nRight-click any file or folder in the Explorer and choose **Add to Context**, or use the button above to browse.\n\n[Add Files](command:context-compressor.addToContext)"
+      }
+    ],
     "commands": [
       {
         "command": "context-compressor.countTokens",
@@ -23,13 +47,71 @@
       {
         "command": "context-compressor.countFolderTokens",
         "title": "Context Compressor: Count Tokens in Selection"
+      },
+      {
+        "command": "context-compressor.addToContext",
+        "title": "Add to Context",
+        "icon": "$(add)"
+      },
+      {
+        "command": "context-compressor.removeFromContext",
+        "title": "Remove from Context",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "context-compressor.clearContext",
+        "title": "Clear Context",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "context-compressor.setCompressionMode",
+        "title": "Set Compression Mode",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "context-compressor.assemblePrompt",
+        "title": "Assemble & Copy Prompt",
+        "icon": "$(copy)"
       }
     ],
     "menus": {
       "explorer/context": [
         {
+          "command": "context-compressor.addToContext",
+          "group": "z_contextcompressor@1"
+        },
+        {
           "command": "context-compressor.countFolderTokens",
-          "group": "z_contextcompressor"
+          "group": "z_contextcompressor@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "context-compressor.assemblePrompt",
+          "when": "view == context-compressor-files",
+          "group": "navigation@1"
+        },
+        {
+          "command": "context-compressor.addToContext",
+          "when": "view == context-compressor-files",
+          "group": "navigation@2"
+        },
+        {
+          "command": "context-compressor.setCompressionMode",
+          "when": "view == context-compressor-files",
+          "group": "navigation@3"
+        },
+        {
+          "command": "context-compressor.clearContext",
+          "when": "view == context-compressor-files",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "context-compressor.removeFromContext",
+          "when": "view == context-compressor-files && viewItem == contextFile",
+          "group": "inline"
         }
       ]
     }

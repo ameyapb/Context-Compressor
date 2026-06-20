@@ -43,17 +43,21 @@ These apply to all code in this repository, no exceptions.
 
 **Dependencies** — Always ask before installing a new library. Prefer using VS Code's built-in APIs or already-present dependencies. If a new dependency is approved, document why it was added.
 
+**No dead code** — Delete unused functions, variables, imports, and branches immediately. Do not comment out code or leave it behind "just in case". If it is not used, it does not belong in the codebase.
+
 **Production mindset** — Every change must be treated as if it ships to production the next day. No half-finished logic, no debug leftovers, no disabled safety checks.
 
 **Keep this file updated** — If a change is made that alters any of the above rules or the architecture described below, update this file in the same commit.
 
 ## Architecture
 
-The extension is split across three modules under `src/`:
+The extension is split across five modules under `src/`:
 
 - **[src/extension.js](src/extension.js)** — activation, command registration, status bar lifecycle. The only file that imports `vscode`. Registers three commands: `countTokens`, `selectModel`, `countFolderTokens`.
 - **[src/models.js](src/models.js)** — model definitions and encoder resolution. Exports `SUPPORTED_MODELS`, `DEFAULT_MODEL_ID`, `getEncoderForModel`, and `getModelById`. No VS Code dependency.
 - **[src/folderCounter.js](src/folderCounter.js)** — recursive file collection and aggregate token counting for the Explorer context menu command. Uses `vscode.workspace.fs` to read directories and files. Binary files are skipped silently (UTF-8 decode failure returns 0). Overlapping selections (e.g. a folder and a file inside it) are deduplicated by URI.
+- **[src/contextBuilder.js](src/contextBuilder.js)** — manages the context file list shown in the sidebar tree view (`ContextFileTreeProvider`). Tracks which files are included, computes per-file token counts, handles checkbox state changes, and assembles the final prompt text with fenced code blocks. Depends on `compressor.js` for compression and `vscode` for the tree and filesystem APIs.
+- **[src/compressor.js](src/compressor.js)** — pure text compression logic with no VS Code dependency. Exports `compress(text, filePath, compressionModeId)` and `getLanguageTag(filePath)`. Supports four modes: `none`, `stripComments`, `collapseWhitespace`, and `signaturesOnly` (with separate extractors for Python and brace-language grammars).
 
 Key design points:
 
