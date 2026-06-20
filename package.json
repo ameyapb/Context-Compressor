@@ -55,7 +55,7 @@
     "viewsWelcome": [
       {
         "view": "token-budget-builder-files",
-        "contents": "No files in context yet.\n\nRight-click any file or folder in the Explorer and choose **Add to Context**, or use the button above to browse.\n\n[Add Files](command:token-budget-builder.addToContext)"
+        "contents": "No files in context yet.\n\nRight-click files or folders in the Explorer and choose **Add to Context**. Check the boxes to include or exclude files, then copy the assembled prompt to your clipboard with your token budget in view.\n\n[Add Files](command:token-budget-builder.addToContext)"
       }
     ],
     "commands": [
@@ -65,7 +65,8 @@
       },
       {
         "command": "token-budget-builder.selectModel",
-        "title": "Context Compressor: Select Model"
+        "title": "Context Compressor: Select Model",
+        "icon": "$(list-selection)"
       },
       {
         "command": "token-budget-builder.countFolderTokens",
@@ -128,6 +129,11 @@
           "command": "token-budget-builder.clearContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@4"
+        },
+        {
+          "command": "token-budget-builder.selectModel",
+          "when": "view == token-budget-builder-files",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [

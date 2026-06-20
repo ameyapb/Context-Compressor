@@ -14,12 +14,14 @@ const {
   formatBudget,
   assemblePromptText,
   getCompressionModeId,
+  getCompressionModeLabel,
 } = require('./contextBuilder');
 const { COMPRESSION_MODES } = require('./compressor');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const STATUS_BAR_PRIORITY = 100;
 const DEBOUNCE_DELAY_MS = 300;
+const BUDGET_WARNING_THRESHOLD = 0.9;
 
 let statusBarItem;
 let debounceTimer;
@@ -38,8 +40,9 @@ function refreshStatusBarFromActiveEditor() {
     return;
   }
   const count = countTokensInText(editor.document.getText());
-  statusBarItem.text = `$(symbol-numeric) ${count.toLocaleString()} tokens`;
-  statusBarItem.tooltip = `Active file token count (${model.label})`;
+  statusBarItem.text = `$(symbol-numeric) ${count.toLocaleString()} tokens  •  ${model.label}`;
+  statusBarItem.tooltip = `Active file token count`;
+  statusBarItem.backgroundColor = undefined;
   statusBarItem.show();
 }
 
@@ -47,10 +50,22 @@ function refreshContextDisplay() {
   if (!treeView) return;
   const model = getModelById(currentModelId);
   const total = getTotalIncludedTokens();
-  treeView.description = formatBudget(total, model.contextWindow);
+  const budgetText = formatBudget(total, model.contextWindow);
+  const compressionLabel = getCompressionModeLabel();
+  treeView.description = compressionLabel !== 'None'
+    ? `${budgetText}  •  ${compressionLabel}`
+    : budgetText;
   if (total > 0) {
-    statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} tokens`;
-    statusBarItem.tooltip = `Total context: ${formatBudget(total, model.contextWindow)} (${model.label})`;
+    const contextWindowK = Math.round(model.contextWindow / 1000);
+    statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${contextWindowK}K tokens  •  ${model.label}`;
+    statusBarItem.tooltip = `Token budget: ${budgetText}`;
+    if (total > model.contextWindow) {
+      statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+    } else if (total > model.contextWindow * BUDGET_WARNING_THRESHOLD) {
+      statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    } else {
+      statusBarItem.backgroundColor = undefined;
+    }
     statusBarItem.show();
   } else {
     refreshStatusBarFromActiveEditor();

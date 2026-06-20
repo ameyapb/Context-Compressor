@@ -1,6 +1,6 @@
 const vscode = require('vscode');
 const path = require('path');
-const { compress, getLanguageTag, COMPRESSION_MODE_NONE } = require('./compressor');
+const { compress, getLanguageTag, COMPRESSION_MODE_NONE, COMPRESSION_MODES } = require('./compressor');
 const { readFileAsText } = require('./fileReader');
 
 let contextFiles = [];
@@ -9,11 +9,15 @@ let encoderFn = null;
 
 const onDidChangeTreeDataEmitter = new vscode.EventEmitter();
 
-async function computeFileTokenCount(uri) {
+async function computeTokenCounts(uri) {
   const text = await readFileAsText(uri);
-  if (text === null) return 0;
+  if (text === null) return { tokenCount: 0, rawTokenCount: 0 };
+  const rawTokenCount = encoderFn(text).length;
+  if (compressionModeId === COMPRESSION_MODE_NONE) {
+    return { tokenCount: rawTokenCount, rawTokenCount };
+  }
   const compressed = compress(text, uri.fsPath, compressionModeId);
-  return encoderFn(compressed).length;
+  return { tokenCount: encoderFn(compressed).length, rawTokenCount };
 }
 
 function getWorkspaceRoot() {
@@ -32,7 +36,10 @@ class ContextFileItem extends vscode.TreeItem {
     super(relativePath, vscode.TreeItemCollapsibleState.None);
     this.uriString = fileEntry.uri.toString();
     this.resourceUri = fileEntry.uri;
-    this.description = fileEntry.tokenCount.toLocaleString() + ' tokens';
+    const savingsPercent = fileEntry.rawTokenCount > 0 && fileEntry.rawTokenCount !== fileEntry.tokenCount
+      ? ` (-${Math.round((1 - fileEntry.tokenCount / fileEntry.rawTokenCount) * 100)}%)`
+      : '';
+    this.description = fileEntry.tokenCount.toLocaleString() + ' tokens' + savingsPercent;
     this.tooltip = fileEntry.uri.fsPath;
     this.contextValue = 'contextFile';
     this.checkboxState = fileEntry.included
@@ -62,7 +69,7 @@ function notifyTreeChanged() {
 
 async function recomputeAllTokenCounts() {
   contextFiles = await Promise.all(
-    contextFiles.map(async (f) => ({ ...f, tokenCount: await computeFileTokenCount(f.uri) }))
+    contextFiles.map(async (f) => ({ ...f, ...(await computeTokenCounts(f.uri)) }))
   );
   notifyTreeChanged();
 }
@@ -79,7 +86,7 @@ async function addFilesToContext(uris) {
   const newEntries = await Promise.all(
     newUris.map(async (uri) => ({
       uri,
-      tokenCount: await computeFileTokenCount(uri),
+      ...(await computeTokenCounts(uri)),
       included: true,
     }))
   );
@@ -149,6 +156,10 @@ function getCompressionModeId() {
   return compressionModeId;
 }
 
+function getCompressionModeLabel() {
+  return COMPRESSION_MODES.find((m) => m.id === compressionModeId)?.label ?? 'None';
+}
+
 module.exports = {
   ContextFileTreeProvider,
   initialize,
@@ -162,4 +173,5 @@ module.exports = {
   formatBudget,
   assemblePromptText,
   getCompressionModeId,
+  getCompressionModeLabel,
 };
