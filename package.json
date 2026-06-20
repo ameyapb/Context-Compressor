@@ -3,7 +3,7 @@
   "displayName": "Context Compressor",
   "description": "Assemble, compress, and copy multi-file prompts — with live token budget for any model",
   "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "publisher": "Uchiha-Labs",
   "license": "MIT",
   "repository": {
     "type": "git",
