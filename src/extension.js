@@ -34,6 +34,7 @@ const {
   deleteTemplate,
   slugifyTemplateName,
 } = require('./templateManager');
+const { BuildPromptTreeProvider } = require('./buildPromptProvider');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';
@@ -186,6 +187,8 @@ let statusBarItem;
 let debounceTimer;
 let currentModelId;
 let treeView;
+let buildPromptTreeView;
+let buildPromptProvider;
 let templateTreeView;
 let promptTemplateTreeProvider;
 let pendingTemplateSession = null;
@@ -225,6 +228,7 @@ function refreshStatusBarFromActiveEditor() {
 
 function refreshContextDisplay() {
   if (!treeView) return;
+  if (buildPromptProvider) buildPromptProvider.refresh();
   const model = getModelById(currentModelId);
   const total = getTotalIncludedTokens();
   const budgetText = formatBudget(total, model.practicalTokenLimit);
@@ -301,6 +305,16 @@ function activate(context) {
   });
   treeView.title = 'Context Files';
   context.subscriptions.push(treeView);
+
+  buildPromptProvider = new BuildPromptTreeProvider(
+    () => getModelById(currentModelId).label,
+    () => getCompressionModeLabel()
+  );
+  buildPromptTreeView = vscode.window.createTreeView('token-budget-builder-build', {
+    treeDataProvider: buildPromptProvider,
+    showCollapseAll: false,
+  });
+  context.subscriptions.push(buildPromptTreeView);
 
   promptTemplateTreeProvider = new PromptTemplateTreeProvider();
   promptTemplateTreeProvider.initialize(context.globalState);

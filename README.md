@@ -2,35 +2,22 @@
 
 Assemble, compress, and copy multi-file prompts — with a live token budget for any model.
 
-Instead of copying files into a chat window and guessing whether you fit under the context limit, Token Budget Builder lets you pick the files that matter, compress them locally to reduce token usage, and copy a clean formatted prompt to the clipboard in one click. No API keys. Everything runs locally.
-
-## Features
-
-- Live token count in the status bar for the active file
-- Sidebar panel to build a multi-file context list with per-file token counts
-- Context budget bar showing `used / limit` for the selected model
-- Four compression modes to shrink token usage before copying
-- Clipboard assembly — all selected files wrapped in labelled fenced code blocks, ready to paste
-- Right-click any file or folder in the Explorer to count tokens or add to context
-- Supports GPT-4o, o1, GPT-4, GPT-3.5 Turbo, and Claude (approximated)
+Instead of pasting files into a chat window and guessing whether you fit under the context limit, Token Budget Builder lets you pick the files that matter, compress them locally, and copy a clean formatted prompt to the clipboard in one click. No API keys. Everything runs locally.
 
 ## How to Use
 
-1. Open the **Token Budget Builder** panel in the Activity Bar.
-2. Right-click files or folders in the Explorer and choose **Add to Context**, or use the **+** button in the panel toolbar.
-3. Check or uncheck files to include or exclude them. The token count updates in real time.
-4. Pick a compression mode via the gear icon if you need to reduce token usage.
-5. Click the copy icon to assemble all included files and copy the prompt to your clipboard.
+1. Open the **Context Compressor** panel in the Activity Bar.
+2. In **Context Files**, add files via the toolbar or by right-clicking in the Explorer.
+3. Check or uncheck files to include or exclude them. The token budget updates in real time.
+4. In **Build Prompt**, click **Model** or **Compression** to adjust settings, then click **Copy Prompt** to assemble and copy.
 
-To count tokens in a file or folder without adding it to context, right-click in the Explorer and choose **Token Budget Builder: Count Tokens in Selection**.
-
-To switch model, run **Token Budget Builder: Select Model** from the Command Palette. The selection is saved across sessions.
+To count tokens in a file or folder without adding it to context, right-click in the Explorer and choose **Count Tokens in Selection**.
 
 ## Compression Modes
 
 | Mode | What it removes | Typical savings |
 |---|---|---|
-| None | — | — |
+| None | nothing | n/a |
 | Strip Comments | Line and block comments (JS/TS/Python/Go/Rust/C) | 5–20% |
 | Collapse Whitespace | Blank lines and trailing spaces | 3–10% |
 | Signatures Only | Function and class bodies — keeps signatures and docstrings | 40–70% |
@@ -45,8 +32,4 @@ To switch model, run **Token Budget Builder: Select Model** from the Command Pal
 | GPT-3.5 Turbo | cl100k_base | 16 385 |
 | Claude (approximation) | cl100k_base | 200 000 |
 
-Claude token counts use the cl100k_base encoding and will not be exact.
-
-## Privacy
-
-All computation is local. File content is read only to count tokens or build the clipboard string. Nothing is stored, logged, or transmitted.
+Claude token counts use the cl100k_base encoding and will not be exact. All computation is local — file content is read only to count tokens or build the clipboard string, and nothing is stored or transmitted.

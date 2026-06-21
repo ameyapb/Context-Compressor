@@ -53,6 +53,10 @@
           "checkboxes": true
         },
         {
+          "id": "token-budget-builder-build",
+          "name": "Assemble & Copy"
+        },
+        {
           "id": "token-budget-builder-templates",
           "name": "Prompt Templates"
         }
@@ -61,11 +65,15 @@
     "viewsWelcome": [
       {
         "view": "token-budget-builder-files",
-        "contents": "No context files yet.\n\nAdd files to build a prompt from your codebase, then assemble and copy it to any AI chat.\n\n[Add Files](command:token-budget-builder.addToContext)\n\n[Add Active File](command:token-budget-builder.addActiveFileToContext)\n\nOr open a source file in the editor and find its imports and test files automatically.\n\n[Suggest Related Files](command:token-budget-builder.suggestRelatedFiles)\n\nOnce files appear here, use the toolbar above to set compression and copy your assembled prompt.\n\nTip: Right-click any file or folder in the Explorer to add it or count its tokens."
+        "contents": "No context files yet.\n\nAdd files to build a prompt from your codebase.\n\n[Add Files](command:token-budget-builder.addToContext)\n\n[Add Active File](command:token-budget-builder.addActiveFileToContext)\n\nOr open a source file in the editor and find its imports and test files automatically.\n\n[Suggest Related Files](command:token-budget-builder.suggestRelatedFiles)\n\nTip: Right-click any file or folder in the Explorer to add it or count its tokens."
+      },
+      {
+        "view": "token-budget-builder-build",
+        "contents": "Add files to Context Files first.\n\nOnce files are checked, come back here to pick a model and compression level, then copy the assembled prompt to your clipboard."
       },
       {
         "view": "token-budget-builder-templates",
-        "contents": "No templates saved.\n\nA template wraps your assembled context with reusable instructions — a planning prompt, a review checklist, a test-writing directive.\n\n[New Template](command:token-budget-builder.newTemplate)\n\nUse {{FILES}} in the body to place context exactly where you want it."
+        "contents": "No templates saved.\n\nA template wraps your assembled context with reusable instructions; a planning prompt, a review checklist, a test-writing directive.\n\n[New Template](command:token-budget-builder.newTemplate)\n\nUse {{FILES}} in the body to place context exactly where you want it."
       }
     ],
     "commands": [
@@ -177,39 +185,29 @@
           "group": "navigation@1"
         },
         {
-          "command": "token-budget-builder.suggestRelatedFiles",
+          "command": "token-budget-builder.addActiveFileToContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@2"
         },
         {
-          "command": "token-budget-builder.addActiveFileToContext",
+          "command": "token-budget-builder.suggestRelatedFiles",
           "when": "view == token-budget-builder-files",
           "group": "navigation@3"
         },
         {
-          "command": "token-budget-builder.setCompressionMode",
+          "command": "token-budget-builder.managePresets",
           "when": "view == token-budget-builder-files",
           "group": "navigation@4"
         },
         {
-          "command": "token-budget-builder.assemblePrompt",
+          "command": "token-budget-builder.clearContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@5"
         },
         {
-          "command": "token-budget-builder.managePresets",
-          "when": "view == token-budget-builder-files",
-          "group": "navigation@6"
-        },
-        {
-          "command": "token-budget-builder.selectModel",
-          "when": "view == token-budget-builder-files",
-          "group": "navigation@7"
-        },
-        {
-          "command": "token-budget-builder.clearContext",
-          "when": "view == token-budget-builder-files",
-          "group": "navigation@8"
+          "command": "token-budget-builder.assemblePrompt",
+          "when": "view == token-budget-builder-build",
+          "group": "navigation@1"
         },
         {
           "command": "token-budget-builder.newTemplate",
