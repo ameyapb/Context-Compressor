@@ -1,8 +1,12 @@
 # Token Budget Builder
 
-Assemble, compress, and copy multi-file prompts — with a live token budget for any model.
+[![Version](https://img.shields.io/visual-studio-marketplace/v/Uchiha-Labs.token-budget-builder?color=007ACC&label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=Uchiha-Labs.token-budget-builder)
+
+Assemble, compress, and copy multi-file prompts with a live token budget for any model.
 
 Instead of pasting files into a chat window and guessing whether you fit under the context limit, Token Budget Builder lets you pick the files that matter, compress them locally, and copy a clean formatted prompt to the clipboard in one click. No API keys. Everything runs locally.
+
+![Token Budget Builder](media/screenshot.png)
 
 ## How to Use
 
@@ -15,12 +19,12 @@ To count tokens in a file or folder without adding it to context, right-click in
 
 ## Compression Modes
 
-| Mode | What it removes | Typical savings |
-|---|---|---|
-| None | nothing | n/a |
-| Strip Comments | Line and block comments (JS/TS/Python/Go/Rust/C) | 5–20% |
-| Collapse Whitespace | Blank lines and trailing spaces | 3–10% |
-| Signatures Only | Function and class bodies — keeps signatures and docstrings | 40–70% |
+| Mode | What it removes |
+|---|---|
+| None | nothing |
+| Strip Comments | Line and block comments (JS/TS/Python/Go/Rust/C) |
+| Collapse Whitespace | Blank lines and trailing spaces |
+| Signatures Only | Function and class bodies; keeps signatures and docstrings |
 
 ## Supported Models
 
@@ -30,6 +34,4 @@ To count tokens in a file or folder without adding it to context, right-click in
 | o1 / o3 | o200k_base | 200 000 |
 | GPT-4 / GPT-4 Turbo | cl100k_base | 128 000 |
 | GPT-3.5 Turbo | cl100k_base | 16 385 |
-| Claude (approximation) | cl100k_base | 200 000 |
-
-Claude token counts use the cl100k_base encoding and will not be exact. All computation is local — file content is read only to count tokens or build the clipboard string, and nothing is stored or transmitted.
+| Claude (approx.) | cl100k_base | 200 000 |

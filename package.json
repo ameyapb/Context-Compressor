@@ -1,8 +1,8 @@
 {
   "name": "token-budget-builder",
   "displayName": "Token Budget Builder",
-  "description": "Assemble, compress, and copy multi-file prompts — with live token budget for any model",
-  "version": "0.1.4",
+  "description": "Build, compress, and copy multi-file prompts with per-model token budgets, import-aware file suggestions, saved presets, and reusable prompt templates; for Claude, GPT-4, Gemini, and more",
+  "version": "0.1.5",
   "publisher": "Uchiha-Labs",
   "license": "MIT",
   "repository": {
@@ -14,12 +14,26 @@
   },
   "keywords": [
     "token counter",
+    "context window",
+    "token limit",
+    "token budget",
     "llm",
-    "context",
+    "prompt engineering",
+    "prompt builder",
+    "prompt template",
+    "context builder",
+    "context compression",
+    "ai context",
+    "code context",
     "compression",
-    "prompt",
+    "multi-file prompt",
     "gpt",
     "claude",
+    "chatgpt",
+    "copilot",
+    "openai",
+    "gemini",
+    "vscode ai",
     "ai"
   ],
   "icon": "media/icon.png",
@@ -31,6 +45,8 @@
     "vscode": "^1.74.0"
   },
   "categories": [
+    "AI",
+    "Machine Learning",
     "Other"
   ],
   "activationEvents": [],
@@ -141,8 +157,13 @@
         "icon": "$(save)"
       },
       {
+        "command": "token-budget-builder.renameTemplate",
+        "title": "Rename Template",
+        "icon": "$(pencil)"
+      },
+      {
         "command": "token-budget-builder.editTemplate",
-        "title": "Edit Template",
+        "title": "Edit Template Body",
         "icon": "$(edit)"
       },
       {
@@ -222,14 +243,19 @@
           "group": "inline"
         },
         {
-          "command": "token-budget-builder.editTemplate",
+          "command": "token-budget-builder.renameTemplate",
           "when": "view == token-budget-builder-templates && viewItem == promptTemplate",
           "group": "inline@1"
         },
         {
-          "command": "token-budget-builder.removeTemplate",
+          "command": "token-budget-builder.editTemplate",
           "when": "view == token-budget-builder-templates && viewItem == promptTemplate",
           "group": "inline@2"
+        },
+        {
+          "command": "token-budget-builder.removeTemplate",
+          "when": "view == token-budget-builder-templates && viewItem == promptTemplate",
+          "group": "inline@3"
         }
       ]
     }

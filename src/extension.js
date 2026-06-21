@@ -39,7 +39,6 @@ const { BuildPromptTreeProvider } = require('./buildPromptProvider');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';
-const TEMPLATE_BODY_PREVIEW_LENGTH = 50;
 const TEMPLATE_DRAFT_FILENAME = 'template-draft.md';
 
 class PromptTemplateItem extends vscode.TreeItem {
@@ -48,10 +47,6 @@ class PromptTemplateItem extends vscode.TreeItem {
     this.templateId = templateId;
     this.iconPath = new vscode.ThemeIcon('note');
     this.contextValue = 'promptTemplate';
-    const flatBody = body.replace(/[\r\n]+/g, ' ');
-    this.description = flatBody.length > TEMPLATE_BODY_PREVIEW_LENGTH
-      ? `${flatBody.slice(0, TEMPLATE_BODY_PREVIEW_LENGTH)}...`
-      : flatBody;
     const tooltip = new vscode.MarkdownString();
     tooltip.appendText(name);
     tooltip.appendText('\n\n');
@@ -841,6 +836,37 @@ function activate(context) {
     }
   );
   context.subscriptions.push(editTemplateCommand);
+
+  const renameTemplateCommand = vscode.commands.registerCommand(
+    'token-budget-builder.renameTemplate',
+    async (item) => {
+      if (!item || !item.templateId) return;
+      const templates = getAllTemplates(context.globalState);
+      const template = templates[item.templateId];
+      if (!template) return;
+      const newName = await vscode.window.showInputBox({
+        prompt: 'New template name',
+        value: template.name,
+      });
+      if (!newName || !newName.trim() || newName.trim() === template.name) return;
+      const newSlug = slugifyTemplateName(newName.trim());
+      const isNewSlug = newSlug !== item.templateId;
+      if (isNewSlug && newSlug in templates) {
+        const confirmReplace = await vscode.window.showWarningMessage(
+          `A template named "${templates[newSlug].name}" already exists. Replace it?`,
+          { modal: true },
+          'Replace'
+        );
+        if (confirmReplace !== 'Replace') return;
+      }
+      if (isNewSlug) {
+        deleteTemplate(context.globalState, item.templateId);
+      }
+      saveTemplate(context.globalState, newName.trim(), template.body);
+      refreshTemplateDisplay();
+    }
+  );
+  context.subscriptions.push(renameTemplateCommand);
 
   const removeTemplateCommand = vscode.commands.registerCommand(
     'token-budget-builder.removeTemplate',

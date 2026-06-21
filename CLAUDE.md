@@ -52,6 +52,8 @@ These apply to all code in this repository, no exceptions.
 
 **No emojis** — Never use emojis in source code, commit messages, or this file.
 
+**No em dashes** — Never use em dashes (—) in README copy, commit messages, or user-facing strings. They read as AI-generated filler. Use a plain sentence instead.
+
 **File structure** — Keep one concern per module. If a file grows beyond a single clear responsibility, split it. Follow VS Code extension conventions: activation logic in `extension.js`, pure utilities extracted to separate files under `src/`.
 
 **Security** — Never log or expose document content. The extension reads file text only to count tokens; that text must never be stored, transmitted, or surfaced beyond the immediate computation. Follow the principle of least privilege for any VS Code API usage.
