@@ -45,32 +45,31 @@ const mockEncoder = (text) =>
   Array.from({ length: Math.max(1, Math.ceil(text.length / 4)) }, (_, i) => i);
 
 describe('formatBudget', () => {
-  it('formats total and window with thousands separators and a percentage', () => {
-    const result = formatBudget(1000, 10000);
-    assert.ok(result.includes('1,000'), 'should format total with thousands separator');
-    assert.ok(result.includes('10,000'), 'should format context window with thousands separator');
-    assert.ok(result.includes('10.0%'), 'should include the percentage');
+  it('shows total with thousands separator and practical limit as K shorthand', () => {
+    const result = formatBudget(12345, 25000);
+    assert.ok(result.includes('12,345'), 'should format total with thousands separator');
+    assert.ok(result.includes('25K'), 'should show practical limit in K format');
   });
 
   it('shows 0.0% when total is zero', () => {
-    const result = formatBudget(0, 128000);
+    const result = formatBudget(0, 25000);
     assert.ok(result.startsWith('0 /'), 'total should be 0');
     assert.ok(result.includes('0.0%'));
   });
 
-  it('shows 100.0% when total equals the context window', () => {
-    const result = formatBudget(128000, 128000);
+  it('shows 100.0% when total equals the practical limit', () => {
+    const result = formatBudget(25000, 25000);
     assert.ok(result.includes('100.0%'));
   });
 
-  it('shows a percentage above 100 when over budget', () => {
-    const result = formatBudget(200000, 128000);
+  it('shows a percentage above 100 when over the practical limit', () => {
+    const result = formatBudget(30000, 25000);
     const match = result.match(/([\d.]+)%/);
     assert.ok(match, 'result should contain a percentage value');
-    assert.ok(parseFloat(match[1]) > 100, 'percentage should exceed 100 when over budget');
+    assert.ok(parseFloat(match[1]) > 100, 'percentage should exceed 100 when over practical limit');
   });
 
-  it('returns 0.0% without dividing by zero when context window is zero', () => {
+  it('returns 0.0% without dividing by zero when practical limit is zero', () => {
     const result = formatBudget(0, 0);
     assert.ok(result.includes('0.0%'));
   });

@@ -13,6 +13,7 @@ const SUPPORTED_MODELS = [
     description: 'Latest OpenAI models: o200k_base encoding',
     encoding: ENCODING_O200K,
     contextWindow: 128000,
+    practicalTokenLimit: 25000,
   },
   {
     id: 'o1',
@@ -20,6 +21,7 @@ const SUPPORTED_MODELS = [
     description: 'OpenAI reasoning models: o200k_base encoding',
     encoding: ENCODING_O200K,
     contextWindow: 200000,
+    practicalTokenLimit: 30000,
   },
   {
     id: 'gpt-4',
@@ -27,6 +29,7 @@ const SUPPORTED_MODELS = [
     description: 'GPT-4 family: cl100k_base encoding',
     encoding: ENCODING_CL100K,
     contextWindow: 128000,
+    practicalTokenLimit: 25000,
   },
   {
     id: 'gpt-3.5-turbo',
@@ -34,6 +37,7 @@ const SUPPORTED_MODELS = [
     description: 'GPT-3.5 family: cl100k_base encoding',
     encoding: ENCODING_CL100K,
     contextWindow: 16385,
+    practicalTokenLimit: 12000,
   },
   {
     id: 'claude',
@@ -41,6 +45,7 @@ const SUPPORTED_MODELS = [
     description: 'Claude models: approximated via cl100k_base; not exact',
     encoding: ENCODING_CL100K,
     contextWindow: 200000,
+    practicalTokenLimit: 25000,
   },
 ];
 

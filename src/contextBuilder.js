@@ -130,11 +130,12 @@ function getTotalIncludedTokens() {
     .reduce((sum, f) => sum + f.tokenCount, 0);
 }
 
-function formatBudget(totalTokens, contextWindow) {
-  const percentage = contextWindow > 0
-    ? ((totalTokens / contextWindow) * 100).toFixed(1)
+function formatBudget(totalTokens, practicalTokenLimit) {
+  const percentage = practicalTokenLimit > 0
+    ? ((totalTokens / practicalTokenLimit) * 100).toFixed(1)
     : '0.0';
-  return `${totalTokens.toLocaleString()} / ${contextWindow.toLocaleString()} tokens (${percentage}%)`;
+  const practicalK = `${Math.round(practicalTokenLimit / 1000)}K`;
+  return `${totalTokens.toLocaleString()} / ${practicalK} (${percentage}%)`;
 }
 
 async function assemblePromptText() {

@@ -19,6 +19,12 @@ describe('SUPPORTED_MODELS', () => {
       assert.ok(model.encoding.length > 0);
       assert.equal(typeof model.contextWindow, 'number');
       assert.ok(model.contextWindow > 0, 'contextWindow should be positive');
+      assert.equal(typeof model.practicalTokenLimit, 'number');
+      assert.ok(model.practicalTokenLimit > 0, 'practicalTokenLimit should be positive');
+      assert.ok(
+        model.practicalTokenLimit < model.contextWindow,
+        `practicalTokenLimit must be below contextWindow for model ${model.id}`
+      );
     }
   });
 
@@ -30,6 +36,21 @@ describe('SUPPORTED_MODELS', () => {
   it('all context windows are realistic token counts', () => {
     for (const model of SUPPORTED_MODELS) {
       assert.ok(model.contextWindow >= 1000, `contextWindow too small for model ${model.id}`);
+    }
+  });
+
+  it('all practical token limits are within the research-backed quality range', () => {
+    const PRACTICAL_LIMIT_MIN = 10000;
+    const PRACTICAL_LIMIT_MAX = 35000;
+    for (const model of SUPPORTED_MODELS) {
+      assert.ok(
+        model.practicalTokenLimit >= PRACTICAL_LIMIT_MIN,
+        `practicalTokenLimit too small for model ${model.id}`
+      );
+      assert.ok(
+        model.practicalTokenLimit <= PRACTICAL_LIMIT_MAX,
+        `practicalTokenLimit too large for model ${model.id}`
+      );
     }
   });
 });

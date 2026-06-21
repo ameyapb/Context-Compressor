@@ -23,7 +23,10 @@ const { COMPRESSION_MODES } = require('./compressor');
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const STATUS_BAR_PRIORITY = 100;
 const DEBOUNCE_DELAY_MS = 300;
-const BUDGET_WARNING_THRESHOLD = 0.9;
+
+function toK(n) {
+  return `${Math.round(n / 1000)}K`;
+}
 
 let statusBarItem;
 let debounceTimer;
@@ -52,20 +55,25 @@ function refreshContextDisplay() {
   if (!treeView) return;
   const model = getModelById(currentModelId);
   const total = getTotalIncludedTokens();
-  const budgetText = formatBudget(total, model.contextWindow);
+  const budgetText = formatBudget(total, model.practicalTokenLimit);
   const compressionLabel = getCompressionModeLabel();
   treeView.description = compressionLabel !== 'None'
     ? `${budgetText}  •  ${compressionLabel}`
     : budgetText;
   if (total > 0) {
-    const contextWindowK = Math.round(model.contextWindow / 1000);
-    statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${contextWindowK}K tokens  •  ${model.label}`;
-    statusBarItem.tooltip = `Token budget: ${budgetText}`;
+    const practicalK = toK(model.practicalTokenLimit);
+    const contextWindowK = toK(model.contextWindow);
     if (total > model.contextWindow) {
+      statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${contextWindowK}  •  ${model.label}`;
+      statusBarItem.tooltip = `Exceeds the ${contextWindowK} context window. Remove files before copying.`;
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-    } else if (total > model.contextWindow * BUDGET_WARNING_THRESHOLD) {
+    } else if (total > model.practicalTokenLimit) {
+      statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${practicalK}  •  ${model.label}`;
+      statusBarItem.tooltip = `Models tend to miss details above ${practicalK} tokens. Reduce or compress files for best results. Hard limit: ${contextWindowK}.`;
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
     } else {
+      statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${practicalK}  •  ${model.label}`;
+      statusBarItem.tooltip = `${total.toLocaleString()} of ${model.practicalTokenLimit.toLocaleString()} recommended tokens (${((total / model.practicalTokenLimit) * 100).toFixed(1)}%). Hard limit: ${contextWindowK}.`;
       statusBarItem.backgroundColor = undefined;
     }
     statusBarItem.show();
@@ -269,6 +277,14 @@ function activate(context) {
         const overage = (totalTokens - model.contextWindow).toLocaleString();
         const choice = await vscode.window.showWarningMessage(
           `Context is ${overage} tokens over the ${model.label} limit. Copy anyway?`,
+          'Copy Anyway',
+          'Cancel'
+        );
+        if (choice !== 'Copy Anyway') return;
+      } else if (totalTokens > model.practicalTokenLimit) {
+        const practicalK = toK(model.practicalTokenLimit);
+        const choice = await vscode.window.showWarningMessage(
+          `Context is ${totalTokens.toLocaleString()} tokens — above the ~${practicalK} threshold where model quality tends to drop. Compress or remove files for best results.`,
           'Copy Anyway',
           'Cancel'
         );
