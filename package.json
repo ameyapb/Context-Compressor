@@ -101,6 +101,11 @@
         "command": "token-budget-builder.suggestRelatedFiles",
         "title": "Context Compressor: Suggest Related Files",
         "icon": "$(type-hierarchy-sub)"
+      },
+      {
+        "command": "token-budget-builder.managePresets",
+        "title": "Manage Presets",
+        "icon": "$(bookmark)"
       }
     ],
     "menus": {
@@ -151,6 +156,11 @@
           "command": "token-budget-builder.selectModel",
           "when": "view == token-budget-builder-files",
           "group": "navigation@6"
+        },
+        {
+          "command": "token-budget-builder.managePresets",
+          "when": "view == token-budget-builder-files",
+          "group": "navigation@7"
         }
       ],
       "view/item/context": [

@@ -153,6 +153,10 @@ async function assemblePromptText() {
   return parts.join('\n\n');
 }
 
+function getIncludedContextUris() {
+  return contextFiles.filter((f) => f.included).map((f) => f.uri);
+}
+
 function getCompressionModeId() {
   return compressionModeId;
 }
@@ -171,6 +175,7 @@ module.exports = {
   applyNewEncoder,
   handleCheckboxStateChange,
   getTotalIncludedTokens,
+  getIncludedContextUris,
   formatBudget,
   assemblePromptText,
   getCompressionModeId,

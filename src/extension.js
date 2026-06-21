@@ -13,12 +13,19 @@ const {
   applyNewEncoder,
   handleCheckboxStateChange,
   getTotalIncludedTokens,
+  getIncludedContextUris,
   formatBudget,
   assemblePromptText,
   getCompressionModeId,
   getCompressionModeLabel,
 } = require('./contextBuilder');
 const { COMPRESSION_MODES } = require('./compressor');
+const {
+  getAllPresets,
+  savePreset,
+  deletePreset,
+  derivePresetNameSuggestion,
+} = require('./presetManager');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const STATUS_BAR_PRIORITY = 100;
@@ -304,6 +311,153 @@ function activate(context) {
     }
   );
   context.subscriptions.push(assemblePromptCommand);
+
+  const managePresetsCommand = vscode.commands.registerCommand(
+    'token-budget-builder.managePresets',
+    async () => {
+      const SAVE_ACTION = 'save';
+      const LOAD_ACTION = 'load';
+      const DELETE_ACTION = 'delete';
+
+      const topLevel = await vscode.window.showQuickPick(
+        [
+          { label: '$(save) Save current selection as preset...', action: SAVE_ACTION },
+          { label: '$(files) Load preset...', action: LOAD_ACTION },
+          { label: '$(trash) Delete preset...', action: DELETE_ACTION },
+        ],
+        { title: 'Manage Presets', placeHolder: 'What would you like to do?' }
+      );
+      if (!topLevel) return;
+
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
+      if (topLevel.action === SAVE_ACTION) {
+        const includedUris = getIncludedContextUris();
+        if (includedUris.length === 0) {
+          vscode.window.showInformationMessage(
+            'Add files to the context panel before saving a preset.'
+          );
+          return;
+        }
+        if (!workspaceFolder) {
+          vscode.window.showErrorMessage('Open a folder in VS Code to use presets.');
+          return;
+        }
+        const relativePaths = includedUris.map((u) =>
+          vscode.workspace.asRelativePath(u, false)
+        );
+        const suggestion = derivePresetNameSuggestion(relativePaths);
+        const name = await vscode.window.showInputBox({
+          prompt: 'Name this preset',
+          value: suggestion,
+          placeHolder: 'e.g. auth flow, API layer',
+        });
+        if (!name) return;
+
+        const presets = getAllPresets(context.workspaceState);
+        if (name in presets) {
+          const overwrite = await vscode.window.showWarningMessage(
+            `A preset named "${name}" already exists. Overwrite it?`,
+            'Overwrite',
+            'Cancel'
+          );
+          if (overwrite !== 'Overwrite') return;
+        }
+
+        savePreset(context.workspaceState, name, relativePaths);
+        vscode.window.showInformationMessage(
+          `Preset "${name}" saved (${relativePaths.length} file${relativePaths.length === 1 ? '' : 's'}).`
+        );
+        return;
+      }
+
+      if (topLevel.action === LOAD_ACTION) {
+        const presets = getAllPresets(context.workspaceState);
+        const presetNames = Object.keys(presets);
+        if (presetNames.length === 0) {
+          vscode.window.showInformationMessage(
+            'No presets saved yet. Add files and save a preset first.'
+          );
+          return;
+        }
+        if (!workspaceFolder) {
+          vscode.window.showErrorMessage('Open a folder in VS Code to use presets.');
+          return;
+        }
+
+        function buildPresetPickItems(isMerge) {
+          const detailText = isMerge
+            ? '$(add) Merges into current selection'
+            : '$(files) Replaces current selection';
+          return presetNames.map((presetName) => {
+            const filePaths = presets[presetName];
+            const fileNames = filePaths.slice(0, 3).map((p) => path.basename(p));
+            const overflowCount = filePaths.length - fileNames.length;
+            const description = overflowCount > 0
+              ? `${fileNames.join(', ')}  +${overflowCount} more`
+              : fileNames.join(', ');
+            return {
+              label: presetName,
+              description,
+              detail: detailText,
+              kind: vscode.QuickPickItemKind.Default,
+              presetName,
+              isMerge,
+            };
+          });
+        }
+
+        const allItems = [
+          ...buildPresetPickItems(false),
+          { label: 'Merge into current context', kind: vscode.QuickPickItemKind.Separator },
+          ...buildPresetPickItems(true),
+        ];
+
+        const selected = await vscode.window.showQuickPick(allItems, {
+          title: 'Load Preset',
+          placeHolder: 'Select a preset',
+        });
+        if (!selected || selected.kind === vscode.QuickPickItemKind.Separator) return;
+
+        const paths = presets[selected.presetName];
+        const resolvedUris = paths.map((relativePath) =>
+          vscode.Uri.joinPath(workspaceFolder.uri, relativePath)
+        );
+
+        if (!selected.isMerge) {
+          clearAllContext();
+        }
+
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Loading preset "${selected.presetName}"...`,
+            cancellable: false,
+          },
+          () => addFilesToContext(resolvedUris)
+        );
+        refreshContextDisplay();
+        return;
+      }
+
+      if (topLevel.action === DELETE_ACTION) {
+        const presets = getAllPresets(context.workspaceState);
+        const presetNames = Object.keys(presets);
+        if (presetNames.length === 0) {
+          vscode.window.showInformationMessage('No presets saved yet.');
+          return;
+        }
+        const selected = await vscode.window.showQuickPick(presetNames, {
+          title: 'Delete Preset',
+          placeHolder: 'Select a preset to delete',
+        });
+        if (!selected) return;
+        deletePreset(context.workspaceState, selected);
+        vscode.window.showInformationMessage(`Preset "${selected}" deleted.`);
+      }
+    }
+  );
+  context.subscriptions.push(managePresetsCommand);
 
   const suggestRelatedFilesCommand = vscode.commands.registerCommand(
     'token-budget-builder.suggestRelatedFiles',
