@@ -48,6 +48,7 @@ const {
   removeFileFromContext,
   handleCheckboxStateChange,
   assemblePromptText,
+  isFileInContext,
 } = require('../src/contextBuilder');
 
 Module._load = originalLoad;
@@ -439,6 +440,54 @@ describe('assemblePromptText', () => {
     const result = await assemblePromptText();
     assert.ok(!result.includes('// a comment'), 'comment should be stripped by compression');
     assert.ok(result.includes('const x = 1;'), 'code should be preserved');
+  });
+});
+
+describe('isFileInContext', () => {
+  beforeEach(() => {
+    initialize(mockEncoder);
+    clearAllContext();
+    mockReadFileAsText = async () => 'content';
+  });
+
+  it('returns false when context is empty', () => {
+    const uri = makeUri('/project/src/index.js');
+    assert.equal(isFileInContext(uri), false);
+  });
+
+  it('returns true for a uri that has been added', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    assert.equal(isFileInContext(uri), true);
+  });
+
+  it('returns false for a uri that was not added', async () => {
+    const uriA = makeUri('/project/src/a.js');
+    const uriB = makeUri('/project/src/b.js');
+    await addFilesToContext([uriA]);
+    assert.equal(isFileInContext(uriB), false);
+  });
+
+  it('returns false after a file has been removed', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    removeFileFromContext(uri.toString());
+    assert.equal(isFileInContext(uri), false);
+  });
+
+  it('returns false after clearAllContext', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    clearAllContext();
+    assert.equal(isFileInContext(uri), false);
+  });
+
+  it('returns true even when the file is unchecked', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const item = { uriString: uri.toString() };
+    handleCheckboxStateChange([[item, vscodeMock.TreeItemCheckboxState.Unchecked]]);
+    assert.equal(isFileInContext(uri), true);
   });
 });
 

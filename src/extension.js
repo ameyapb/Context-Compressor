@@ -19,6 +19,7 @@ const {
   assemblePromptText,
   getCompressionModeId,
   getCompressionModeLabel,
+  isFileInContext,
 } = require('./contextBuilder');
 const { COMPRESSION_MODES } = require('./compressor');
 const {
@@ -57,8 +58,13 @@ function refreshStatusBarFromActiveEditor() {
     return;
   }
   const count = countTokensInText(editor.document.getText());
+  const fileName = path.basename(editor.document.fileName);
   statusBarItem.text = `$(symbol-numeric) ${count.toLocaleString()} tokens  •  ${model.label}`;
-  statusBarItem.tooltip = `Active file token count`;
+  const tooltip = new vscode.MarkdownString();
+  tooltip.appendMarkdown(`**${fileName}** — ${count.toLocaleString()} tokens\n\n`);
+  tooltip.appendMarkdown(`Model: ${model.label}\n\n`);
+  tooltip.appendMarkdown('Click to see the full count. Add files to the context panel to track your total budget.');
+  statusBarItem.tooltip = tooltip;
   statusBarItem.backgroundColor = undefined;
   statusBarItem.show();
 }
@@ -75,17 +81,30 @@ function refreshContextDisplay() {
   if (total > 0) {
     const practicalK = toK(model.practicalTokenLimit);
     const contextWindowK = toK(model.contextWindow);
+    const pct = ((total / model.practicalTokenLimit) * 100).toFixed(1);
     if (total > model.contextWindow) {
       statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${contextWindowK}  •  ${model.label}`;
-      statusBarItem.tooltip = `Exceeds the ${contextWindowK} context window. Remove files before copying.`;
+      const tooltip = new vscode.MarkdownString();
+      tooltip.appendMarkdown(`**Over the context window limit**\n\n`);
+      tooltip.appendMarkdown(`${total.toLocaleString()} tokens — ${(total - model.contextWindow).toLocaleString()} over the ${contextWindowK} hard cap for ${model.label}.\n\n`);
+      tooltip.appendMarkdown('Remove or compress files before copying.');
+      statusBarItem.tooltip = tooltip;
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
     } else if (total > model.practicalTokenLimit) {
       statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${practicalK}  •  ${model.label}`;
-      statusBarItem.tooltip = `Models tend to miss details above ${practicalK} tokens. Reduce or compress files for best results. Hard limit: ${contextWindowK}.`;
+      const tooltip = new vscode.MarkdownString();
+      tooltip.appendMarkdown(`**Above the recommended limit** (${pct}%)\n\n`);
+      tooltip.appendMarkdown(`${total.toLocaleString()} tokens — models tend to miss details above ~${practicalK}.\n\n`);
+      tooltip.appendMarkdown(`Compress files or remove some to improve response quality. Hard cap: ${contextWindowK}.`);
+      statusBarItem.tooltip = tooltip;
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
     } else {
       statusBarItem.text = `$(symbol-numeric) ${total.toLocaleString()} / ${practicalK}  •  ${model.label}`;
-      statusBarItem.tooltip = `${total.toLocaleString()} of ${model.practicalTokenLimit.toLocaleString()} recommended tokens (${((total / model.practicalTokenLimit) * 100).toFixed(1)}%). Hard limit: ${contextWindowK}.`;
+      const tooltip = new vscode.MarkdownString();
+      tooltip.appendMarkdown(`**Context budget: ${pct}% used**\n\n`);
+      tooltip.appendMarkdown(`${total.toLocaleString()} of ${model.practicalTokenLimit.toLocaleString()} recommended tokens for ${model.label}.\n\n`);
+      tooltip.appendMarkdown(`Hard cap: ${contextWindowK} tokens.`);
+      statusBarItem.tooltip = tooltip;
       statusBarItem.backgroundColor = undefined;
     }
     statusBarItem.show();
@@ -143,8 +162,16 @@ function activate(context) {
   const selectModelCommand = vscode.commands.registerCommand(
     'token-budget-builder.selectModel',
     async () => {
-      const selected = await vscode.window.showQuickPick(SUPPORTED_MODELS, {
+      const items = SUPPORTED_MODELS.map((model) => ({
+        ...model,
+        label: model.id === currentModelId ? `$(check) ${model.label}` : model.label,
+        description: model.id === currentModelId
+          ? `${model.description}  — currently selected`
+          : model.description,
+      }));
+      const selected = await vscode.window.showQuickPick(items, {
         placeHolder: 'Select model for token counting',
+        title: 'Select Model',
       });
       if (!selected) return;
       currentModelId = selected.id;
@@ -257,10 +284,11 @@ function activate(context) {
       const currentModeId = getCompressionModeId();
       const items = COMPRESSION_MODES.map((mode) => ({
         ...mode,
-        picked: mode.id === currentModeId,
+        label: mode.id === currentModeId ? `$(check) ${mode.label}` : mode.label,
       }));
       const selected = await vscode.window.showQuickPick(items, {
         placeHolder: 'Select compression mode for context assembly',
+        title: 'Set Compression Mode',
       });
       if (!selected) return;
       await vscode.window.withProgress(
@@ -284,7 +312,7 @@ function activate(context) {
 
       if (totalTokens === 0) {
         vscode.window.showInformationMessage(
-          'No files are included in the context. Add files via right-click in the Explorer.'
+          'No files checked in the context panel. Use the + button or right-click a file in the Explorer to add files.'
         );
         return;
       }
@@ -467,6 +495,31 @@ function activate(context) {
     }
   );
   context.subscriptions.push(managePresetsCommand);
+
+  const addActiveFileToContextCommand = vscode.commands.registerCommand(
+    'token-budget-builder.addActiveFileToContext',
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showInformationMessage(
+          'No file open. Click a file in the editor first, then add it.'
+        );
+        return;
+      }
+      const uri = editor.document.uri;
+      const fileName = path.basename(uri.fsPath);
+      if (isFileInContext(uri)) {
+        vscode.window.showInformationMessage(
+          `${fileName} is already in the context panel.`
+        );
+        return;
+      }
+      await addFilesToContext([uri]);
+      refreshContextDisplay();
+      vscode.window.showInformationMessage(`Added ${fileName} to context.`);
+    }
+  );
+  context.subscriptions.push(addActiveFileToContextCommand);
 
   const suggestRelatedFilesCommand = vscode.commands.registerCommand(
     'token-budget-builder.suggestRelatedFiles',

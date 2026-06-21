@@ -40,12 +40,29 @@ class ContextFileItem extends vscode.TreeItem {
       ? ` (-${Math.round((1 - fileEntry.tokenCount / fileEntry.rawTokenCount) * 100)}%)`
       : '';
     this.description = fileEntry.tokenCount.toLocaleString() + ' tokens' + savingsPercent;
-    this.tooltip = fileEntry.uri.fsPath;
+    this.tooltip = buildFileItemTooltip(fileEntry);
     this.contextValue = 'contextFile';
     this.checkboxState = fileEntry.included
       ? vscode.TreeItemCheckboxState.Checked
       : vscode.TreeItemCheckboxState.Unchecked;
   }
+}
+
+function buildFileItemTooltip(fileEntry) {
+  const tooltip = new vscode.MarkdownString();
+  tooltip.appendMarkdown(`**${path.basename(fileEntry.uri.fsPath)}**\n\n`);
+  tooltip.appendText(fileEntry.uri.fsPath);
+  if (fileEntry.rawTokenCount > 0 && fileEntry.rawTokenCount !== fileEntry.tokenCount) {
+    const savingsPercent = Math.round((1 - fileEntry.tokenCount / fileEntry.rawTokenCount) * 100);
+    tooltip.appendMarkdown(
+      `\n\n${fileEntry.tokenCount.toLocaleString()} tokens after compression` +
+      ` (${fileEntry.rawTokenCount.toLocaleString()} raw — ${savingsPercent}% saved)`
+    );
+  } else {
+    tooltip.appendMarkdown(`\n\n${fileEntry.tokenCount.toLocaleString()} tokens`);
+  }
+  tooltip.appendMarkdown('\n\nUncheck to exclude from the assembled prompt.');
+  return tooltip;
 }
 
 class ContextFileTreeProvider {
@@ -165,6 +182,10 @@ function getCompressionModeLabel() {
   return COMPRESSION_MODES.find((m) => m.id === compressionModeId)?.label ?? 'None';
 }
 
+function isFileInContext(uri) {
+  return contextFiles.some((f) => f.uri.toString() === uri.toString());
+}
+
 module.exports = {
   ContextFileTreeProvider,
   initialize,
@@ -180,4 +201,5 @@ module.exports = {
   assemblePromptText,
   getCompressionModeId,
   getCompressionModeLabel,
+  isFileInContext,
 };

@@ -30,7 +30,9 @@
   "engines": {
     "vscode": "^1.74.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [],
   "main": "./src/extension.js",
   "contributes": {
@@ -55,7 +57,7 @@
     "viewsWelcome": [
       {
         "view": "token-budget-builder-files",
-        "contents": "Open the file you're working on, then click Suggest Related Files — it reads your imports and finds adjacent test files automatically.\n\n[Suggest Related Files](command:token-budget-builder.suggestRelatedFiles)\n\nOr add files manually from the Explorer.\n\n[Add Files](command:token-budget-builder.addToContext)"
+        "contents": "No context files yet.\n\nAdd files to build a prompt from your codebase, then assemble and copy it to any AI chat.\n\n[Add Files](command:token-budget-builder.addToContext)\n\n[Add Active File](command:token-budget-builder.addActiveFileToContext)\n\nOr open a source file in the editor and find its imports and test files automatically.\n\n[Suggest Related Files](command:token-budget-builder.suggestRelatedFiles)\n\nOnce files appear here, use the toolbar above to set compression and copy your assembled prompt.\n\nTip: Right-click any file or folder in the Explorer to add it or count its tokens."
       }
     ],
     "commands": [
@@ -106,6 +108,11 @@
         "command": "token-budget-builder.managePresets",
         "title": "Manage Presets",
         "icon": "$(bookmark)"
+      },
+      {
+        "command": "token-budget-builder.addActiveFileToContext",
+        "title": "Add Active File to Context",
+        "icon": "$(file-add)"
       }
     ],
     "menus": {
@@ -121,14 +128,19 @@
       ],
       "editor/context": [
         {
-          "command": "token-budget-builder.suggestRelatedFiles",
+          "command": "token-budget-builder.addActiveFileToContext",
           "group": "z_contextcompressor@1",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "token-budget-builder.suggestRelatedFiles",
+          "group": "z_contextcompressor@2",
           "when": "editorIsOpen"
         }
       ],
       "view/title": [
         {
-          "command": "token-budget-builder.assemblePrompt",
+          "command": "token-budget-builder.addToContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@1"
         },
@@ -138,7 +150,7 @@
           "group": "navigation@2"
         },
         {
-          "command": "token-budget-builder.addToContext",
+          "command": "token-budget-builder.addActiveFileToContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@3"
         },
@@ -148,19 +160,24 @@
           "group": "navigation@4"
         },
         {
-          "command": "token-budget-builder.clearContext",
+          "command": "token-budget-builder.assemblePrompt",
           "when": "view == token-budget-builder-files",
           "group": "navigation@5"
         },
         {
-          "command": "token-budget-builder.selectModel",
+          "command": "token-budget-builder.managePresets",
           "when": "view == token-budget-builder-files",
           "group": "navigation@6"
         },
         {
-          "command": "token-budget-builder.managePresets",
+          "command": "token-budget-builder.selectModel",
           "when": "view == token-budget-builder-files",
           "group": "navigation@7"
+        },
+        {
+          "command": "token-budget-builder.clearContext",
+          "when": "view == token-budget-builder-files",
+          "group": "navigation@8"
         }
       ],
       "view/item/context": [
