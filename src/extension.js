@@ -30,6 +30,9 @@ const {
 } = require('./presetManager');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
+const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';
+const RELOAD_WINDOW_COMMAND = 'workbench.action.reloadWindow';
+const RELOAD_NOW_LABEL = 'Reload Now';
 const STATUS_BAR_PRIORITY = 100;
 const DEBOUNCE_DELAY_MS = 300;
 
@@ -113,8 +116,23 @@ function refreshContextDisplay() {
   }
 }
 
+async function notifyIfUpdated(context) {
+  const currentVersion = context.extension.packageJSON.version;
+  const previousVersion = context.globalState.get(GLOBAL_STATE_VERSION_KEY);
+  if (previousVersion === currentVersion) return;
+  await context.globalState.update(GLOBAL_STATE_VERSION_KEY, currentVersion);
+  const message = previousVersion === undefined
+    ? `Token Budget Builder installed. Reload window to activate it.`
+    : `Token Budget Builder updated to v${currentVersion}. Reload window to apply changes.`;
+  const action = await vscode.window.showInformationMessage(message, RELOAD_NOW_LABEL);
+  if (action === RELOAD_NOW_LABEL) {
+    vscode.commands.executeCommand(RELOAD_WINDOW_COMMAND);
+  }
+}
+
 function activate(context) {
   currentModelId = context.globalState.get(GLOBAL_STATE_MODEL_KEY, DEFAULT_MODEL_ID);
+  notifyIfUpdated(context);
 
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
