@@ -28,13 +28,151 @@ const {
   deletePreset,
   derivePresetNameSuggestion,
 } = require('./presetManager');
+const {
+  getAllTemplates,
+  saveTemplate,
+  deleteTemplate,
+  slugifyTemplateName,
+} = require('./templateManager');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';
+const TEMPLATE_BODY_PREVIEW_LENGTH = 50;
+const TEMPLATE_DRAFT_FILENAME = 'template-draft.md';
+
+class PromptTemplateItem extends vscode.TreeItem {
+  constructor(templateId, name, body) {
+    super(name, vscode.TreeItemCollapsibleState.None);
+    this.templateId = templateId;
+    this.iconPath = new vscode.ThemeIcon('note');
+    this.contextValue = 'promptTemplate';
+    const flatBody = body.replace(/[\r\n]+/g, ' ');
+    this.description = flatBody.length > TEMPLATE_BODY_PREVIEW_LENGTH
+      ? `${flatBody.slice(0, TEMPLATE_BODY_PREVIEW_LENGTH)}...`
+      : flatBody;
+    const tooltip = new vscode.MarkdownString();
+    tooltip.appendMarkdown(`**${name}**\n\n\`\`\`\n${body}\n\`\`\``);
+    this.tooltip = tooltip;
+    this.command = {
+      command: 'token-budget-builder.openTemplate',
+      title: 'Open Template',
+      arguments: [templateId],
+    };
+  }
+}
+
+class PromptTemplateTreeProvider {
+  constructor() {
+    this._onDidChangeTreeData = new vscode.EventEmitter();
+    this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    this._storage = null;
+  }
+
+  initialize(storage) {
+    this._storage = storage;
+  }
+
+  getTreeItem(element) {
+    return element;
+  }
+
+  getChildren() {
+    if (!this._storage) return [];
+    const templates = getAllTemplates(this._storage);
+    return Object.entries(templates).map(
+      ([id, { name, body }]) => new PromptTemplateItem(id, name, body)
+    );
+  }
+
+  refresh() {
+    this._onDidChangeTreeData.fire(undefined);
+  }
+}
+
 const RELOAD_WINDOW_COMMAND = 'workbench.action.reloadWindow';
 const RELOAD_NOW_LABEL = 'Reload Now';
 const STATUS_BAR_PRIORITY = 100;
 const DEBOUNCE_DELAY_MS = 300;
+const TEMPLATE_PREVIEW_WEBVIEW_TYPE = 'token-budget-builder.templatePreview';
+const TEMPLATE_PREVIEW_COPY_COMMAND = 'copy';
+
+function generateNonce() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function buildTemplatePreviewHtml(templateName, templateBody) {
+  const nonce = generateNonce();
+  const escapedBody = templateBody
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
+  <style nonce="${nonce}">
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      gap: 12px;
+      background: var(--vscode-editor-background);
+      color: var(--vscode-editor-foreground);
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+    }
+    p {
+      margin: 0;
+      color: var(--vscode-descriptionForeground);
+      font-size: 0.85em;
+    }
+    textarea {
+      flex: 1;
+      background: var(--vscode-input-background);
+      color: var(--vscode-input-foreground);
+      border: 1px solid var(--vscode-input-border, var(--vscode-panel-border, #454545));
+      font-family: var(--vscode-editor-font-family);
+      font-size: var(--vscode-editor-font-size);
+      padding: 8px;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+    }
+    textarea:focus {
+      border-color: var(--vscode-focusBorder);
+    }
+    button {
+      align-self: flex-start;
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      border: none;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: var(--vscode-font-size);
+      font-family: var(--vscode-font-family);
+    }
+    button:hover { background: var(--vscode-button-hoverBackground); }
+  </style>
+</head>
+<body>
+  <p>Edit this copy to fill in placeholders, then copy. Changes here do not affect the saved template.</p>
+  <textarea id="content" spellcheck="false">${escapedBody}</textarea>
+  <button id="copyBtn">Copy to Clipboard</button>
+  <script nonce="${nonce}">
+    const vscode = acquireVsCodeApi();
+    document.getElementById('copyBtn').addEventListener('click', function() {
+      vscode.postMessage({ command: '${TEMPLATE_PREVIEW_COPY_COMMAND}', text: document.getElementById('content').value });
+    });
+  </script>
+</body>
+</html>`;
+}
 
 function toK(n) {
   return `${Math.round(n / 1000)}K`;
@@ -48,6 +186,19 @@ let statusBarItem;
 let debounceTimer;
 let currentModelId;
 let treeView;
+let templateTreeView;
+let promptTemplateTreeProvider;
+let pendingTemplateSession = null;
+
+async function closeDraftEditorTabs(draftUri) {
+  const draftUriString = draftUri.toString();
+  const draftTabs = vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .filter((tab) => tab.input instanceof vscode.TabInputText && tab.input.uri.toString() === draftUriString);
+  if (draftTabs.length > 0) {
+    await vscode.window.tabGroups.close(draftTabs);
+  }
+}
 
 function countTokensInText(text) {
   return getEncoderForModel(currentModelId)(text).length;
@@ -81,6 +232,7 @@ function refreshContextDisplay() {
   treeView.description = compressionLabel !== 'None'
     ? `${budgetText}  •  ${compressionLabel}`
     : budgetText;
+  if (pendingTemplateSession) return;
   if (total > 0) {
     const practicalK = toK(model.practicalTokenLimit);
     const contextWindowK = toK(model.contextWindow);
@@ -149,6 +301,61 @@ function activate(context) {
   });
   treeView.title = 'Context Files';
   context.subscriptions.push(treeView);
+
+  promptTemplateTreeProvider = new PromptTemplateTreeProvider();
+  promptTemplateTreeProvider.initialize(context.globalState);
+  templateTreeView = vscode.window.createTreeView('token-budget-builder-templates', {
+    treeDataProvider: promptTemplateTreeProvider,
+    showCollapseAll: false,
+  });
+  context.subscriptions.push(templateTreeView);
+
+  templateTreeView.title = 'Prompt Templates';
+
+  function refreshTemplateDisplay() {
+    promptTemplateTreeProvider.refresh();
+  }
+
+  function persistDraftTemplate(docText) {
+    const body = docText.trim();
+    if (!body) {
+      vscode.window.showInformationMessage('Template body is empty. Write your template content first.');
+      return false;
+    }
+    const { name } = pendingTemplateSession;
+    saveTemplate(context.globalState, name, body);
+    refreshTemplateDisplay();
+    refreshContextDisplay();
+    vscode.window.showInformationMessage(`Template "${name}" saved.`);
+    return true;
+  }
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (doc) => {
+      if (!pendingTemplateSession) return;
+      if (doc.uri.toString() !== pendingTemplateSession.draftUri.toString()) return;
+      if (!persistDraftTemplate(doc.getText())) return;
+      const draftUri = pendingTemplateSession.draftUri;
+      pendingTemplateSession = null;
+      await closeDraftEditorTabs(draftUri);
+      try {
+        await vscode.workspace.fs.delete(draftUri);
+      } catch (_) {}
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument(async (doc) => {
+      if (!pendingTemplateSession) return;
+      if (doc.uri.toString() !== pendingTemplateSession.draftUri.toString()) return;
+      const draftUri = pendingTemplateSession.draftUri;
+      pendingTemplateSession = null;
+      try {
+        await vscode.workspace.fs.delete(draftUri);
+      } catch (_) {}
+      refreshContextDisplay();
+    })
+  );
 
   initializeContextBuilder(getEncoderForModel(currentModelId));
   refreshContextDisplay();
@@ -360,9 +567,7 @@ function activate(context) {
       }
 
       await vscode.env.clipboard.writeText(promptText);
-      vscode.window.showInformationMessage(
-        `Copied ${totalTokens.toLocaleString()} tokens to clipboard.`
-      );
+      vscode.window.showInformationMessage(`Copied ${totalTokens.toLocaleString()} tokens to clipboard.`);
     }
   );
   context.subscriptions.push(assemblePromptCommand);
@@ -513,6 +718,128 @@ function activate(context) {
     }
   );
   context.subscriptions.push(managePresetsCommand);
+
+  const openTemplateCommand = vscode.commands.registerCommand(
+    'token-budget-builder.openTemplate',
+    (templateId) => {
+      if (!templateId) return;
+      const templates = getAllTemplates(context.globalState);
+      const template = templates[templateId];
+      if (!template) return;
+      const panel = vscode.window.createWebviewPanel(
+        TEMPLATE_PREVIEW_WEBVIEW_TYPE,
+        `Preview: ${template.name}`,
+        vscode.ViewColumn.One,
+        { enableScripts: true, retainContextWhenHidden: false }
+      );
+      panel.webview.html = buildTemplatePreviewHtml(template.name, template.body);
+      panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command !== TEMPLATE_PREVIEW_COPY_COMMAND) return;
+        await vscode.env.clipboard.writeText(message.text);
+        vscode.window.showInformationMessage('Copied to clipboard.');
+      }, undefined, context.subscriptions);
+    }
+  );
+  context.subscriptions.push(openTemplateCommand);
+
+  const newTemplateCommand = vscode.commands.registerCommand(
+    'token-budget-builder.newTemplate',
+    async () => {
+      if (pendingTemplateSession) {
+        vscode.window.showInformationMessage('Save or close the current template draft first.');
+        return;
+      }
+      const name = await vscode.window.showInputBox({
+        prompt: 'Template name',
+        placeHolder: 'e.g. Plan, Review, Write Tests',
+      });
+      if (!name || !name.trim()) return;
+      const existingSlug = slugifyTemplateName(name.trim());
+      const existingTemplates = getAllTemplates(context.globalState);
+      if (existingSlug in existingTemplates) {
+        const confirmReplace = await vscode.window.showWarningMessage(
+          `A template named "${existingTemplates[existingSlug].name}" already exists. Replace it?`,
+          { modal: true },
+          'Replace'
+        );
+        if (confirmReplace !== 'Replace') return;
+      }
+      await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+      const draftUri = vscode.Uri.joinPath(context.globalStorageUri, TEMPLATE_DRAFT_FILENAME);
+      await vscode.workspace.fs.writeFile(draftUri, new TextEncoder().encode(''));
+      pendingTemplateSession = { name: name.trim(), draftUri };
+      const doc = await vscode.workspace.openTextDocument(draftUri);
+      await vscode.window.showTextDocument(doc);
+      statusBarItem.text = `$(note) Editing "${name.trim()}" — Ctrl+S to save  |  use {{FILES}} as context placeholder`;
+      statusBarItem.show();
+    }
+  );
+  context.subscriptions.push(newTemplateCommand);
+
+  const saveActiveDocumentAsTemplateCommand = vscode.commands.registerCommand(
+    'token-budget-builder.saveActiveDocumentAsTemplate',
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showInformationMessage('Open a document first, then run Save as Template.');
+        return;
+      }
+      if (!pendingTemplateSession) {
+        vscode.window.showInformationMessage('Use "New Template" or "Edit Template" to start editing a template.');
+        return;
+      }
+      if (!persistDraftTemplate(editor.document.getText())) return;
+      const draftUri = pendingTemplateSession.draftUri;
+      pendingTemplateSession = null;
+      await closeDraftEditorTabs(draftUri);
+      try {
+        await vscode.workspace.fs.delete(draftUri);
+      } catch (_) {}
+    }
+  );
+  context.subscriptions.push(saveActiveDocumentAsTemplateCommand);
+
+  const editTemplateCommand = vscode.commands.registerCommand(
+    'token-budget-builder.editTemplate',
+    async (item) => {
+      if (!item || !item.templateId) return;
+      if (pendingTemplateSession) {
+        vscode.window.showInformationMessage('Save or close the current template draft first.');
+        return;
+      }
+      const templates = getAllTemplates(context.globalState);
+      const template = templates[item.templateId];
+      if (!template) return;
+      await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+      const draftUri = vscode.Uri.joinPath(context.globalStorageUri, TEMPLATE_DRAFT_FILENAME);
+      await vscode.workspace.fs.writeFile(draftUri, new TextEncoder().encode(template.body));
+      pendingTemplateSession = { name: template.name, draftUri };
+      const doc = await vscode.workspace.openTextDocument(draftUri);
+      await vscode.window.showTextDocument(doc);
+      statusBarItem.text = `$(note) Editing "${template.name}" — Ctrl+S to save  |  use {{FILES}} as context placeholder`;
+      statusBarItem.show();
+    }
+  );
+  context.subscriptions.push(editTemplateCommand);
+
+  const removeTemplateCommand = vscode.commands.registerCommand(
+    'token-budget-builder.removeTemplate',
+    async (item) => {
+      if (!item || !item.templateId) return;
+      const templates = getAllTemplates(context.globalState);
+      const templateToRemove = templates[item.templateId];
+      if (!templateToRemove) return;
+      const confirmRemove = await vscode.window.showWarningMessage(
+        `Remove template "${templateToRemove.name}"?`,
+        { modal: true },
+        'Remove'
+      );
+      if (confirmRemove !== 'Remove') return;
+      deleteTemplate(context.globalState, item.templateId);
+      refreshTemplateDisplay();
+    }
+  );
+  context.subscriptions.push(removeTemplateCommand);
 
   const addActiveFileToContextCommand = vscode.commands.registerCommand(
     'token-budget-builder.addActiveFileToContext',

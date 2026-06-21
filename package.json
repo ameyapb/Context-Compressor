@@ -51,6 +51,10 @@
           "id": "token-budget-builder-files",
           "name": "Context Files",
           "checkboxes": true
+        },
+        {
+          "id": "token-budget-builder-templates",
+          "name": "Prompt Templates"
         }
       ]
     },
@@ -58,6 +62,10 @@
       {
         "view": "token-budget-builder-files",
         "contents": "No context files yet.\n\nAdd files to build a prompt from your codebase, then assemble and copy it to any AI chat.\n\n[Add Files](command:token-budget-builder.addToContext)\n\n[Add Active File](command:token-budget-builder.addActiveFileToContext)\n\nOr open a source file in the editor and find its imports and test files automatically.\n\n[Suggest Related Files](command:token-budget-builder.suggestRelatedFiles)\n\nOnce files appear here, use the toolbar above to set compression and copy your assembled prompt.\n\nTip: Right-click any file or folder in the Explorer to add it or count its tokens."
+      },
+      {
+        "view": "token-budget-builder-templates",
+        "contents": "No templates saved.\n\nA template wraps your assembled context with reusable instructions — a planning prompt, a review checklist, a test-writing directive.\n\n[New Template](command:token-budget-builder.newTemplate)\n\nUse {{FILES}} in the body to place context exactly where you want it."
       }
     ],
     "commands": [
@@ -113,6 +121,30 @@
         "command": "token-budget-builder.addActiveFileToContext",
         "title": "Add Active File to Context",
         "icon": "$(file-add)"
+      },
+      {
+        "command": "token-budget-builder.newTemplate",
+        "title": "Context Compressor: New Template",
+        "icon": "$(add)"
+      },
+      {
+        "command": "token-budget-builder.saveActiveDocumentAsTemplate",
+        "title": "Context Compressor: Save as Template",
+        "icon": "$(save)"
+      },
+      {
+        "command": "token-budget-builder.editTemplate",
+        "title": "Edit Template",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "token-budget-builder.removeTemplate",
+        "title": "Remove Template",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "token-budget-builder.openTemplate",
+        "title": "Open Template"
       }
     ],
     "menus": {
@@ -178,6 +210,11 @@
           "command": "token-budget-builder.clearContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@8"
+        },
+        {
+          "command": "token-budget-builder.newTemplate",
+          "when": "view == token-budget-builder-templates",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -185,6 +222,16 @@
           "command": "token-budget-builder.removeFromContext",
           "when": "view == token-budget-builder-files && viewItem == contextFile",
           "group": "inline"
+        },
+        {
+          "command": "token-budget-builder.editTemplate",
+          "when": "view == token-budget-builder-templates && viewItem == promptTemplate",
+          "group": "inline@1"
+        },
+        {
+          "command": "token-budget-builder.removeTemplate",
+          "when": "view == token-budget-builder-templates && viewItem == promptTemplate",
+          "group": "inline@2"
         }
       ]
     }
