@@ -38,6 +38,11 @@ describe('getLanguageTag', () => {
     assert.equal(getLanguageTag('foo.xml'), 'xml');
   });
 
+  it('maps Java extension to correct tag', () => {
+    assert.equal(getLanguageTag('foo.java'), 'java');
+    assert.equal(getLanguageTag('com/example/Main.java'), 'java');
+  });
+
   it('returns empty string for unknown extension', () => {
     assert.equal(getLanguageTag('foo.xyz'), '');
     assert.equal(getLanguageTag('Makefile'), '');
@@ -232,5 +237,143 @@ describe('compress — unknown mode', () => {
   it('returns text unchanged for an unrecognized compression mode', () => {
     const text = 'some content';
     assert.equal(compress(text, 'foo.js', 'nonExistentMode'), text);
+  });
+});
+
+describe('compress — stripComments mode (Go, Rust, Java, C)', () => {
+  it('removes Go line comments and preserves code', () => {
+    const input = '// package comment\npackage main\n\nfunc main() {\n\t// body\n\tfmt.Println("hi")\n}';
+    const result = compress(input, 'main.go', 'stripComments');
+    assert.ok(!result.includes('//'), 'should remove all // comments');
+    assert.ok(result.includes('package main'));
+    assert.ok(result.includes('func main()'));
+    assert.ok(result.includes('fmt.Println'));
+  });
+
+  it('removes Go block comments and preserves code', () => {
+    const input = '/* file header */\npackage main\n\nfunc Add(a, b int) int {\n    return a + b\n}';
+    const result = compress(input, 'add.go', 'stripComments');
+    assert.ok(!result.includes('/*'));
+    assert.ok(!result.includes('*/'));
+    assert.ok(result.includes('package main'));
+    assert.ok(result.includes('func Add'));
+  });
+
+  it('removes Rust line and block comments and preserves code', () => {
+    const input = '// crate doc\nfn main() {\n    /* block */\n    println!("hi");\n}';
+    const result = compress(input, 'main.rs', 'stripComments');
+    assert.ok(!result.includes('//'));
+    assert.ok(!result.includes('/*'));
+    assert.ok(result.includes('fn main()'));
+    assert.ok(result.includes('println!'));
+  });
+
+  it('removes Java line and block comments and preserves code', () => {
+    const input = '/* license */\npublic class Foo {\n    // method\n    public void bar() {}\n}';
+    const result = compress(input, 'Foo.java', 'stripComments');
+    assert.ok(!result.includes('/*'));
+    assert.ok(!result.includes('//'));
+    assert.ok(result.includes('public class Foo'));
+    assert.ok(result.includes('public void bar()'));
+  });
+
+  it('removes C line and block comments and preserves code', () => {
+    const input = '/* header */\n#include <stdio.h>\n// comment\nint main() { return 0; }';
+    const result = compress(input, 'main.c', 'stripComments');
+    assert.ok(!result.includes('/*'));
+    assert.ok(!result.includes('//'));
+    assert.ok(result.includes('#include'));
+    assert.ok(result.includes('int main()'));
+  });
+});
+
+describe('compress — signaturesOnly mode (Go)', () => {
+  it('keeps func signatures and inserts body placeholder', () => {
+    const input = 'func Add(a, b int) int {\n\treturn a + b\n}';
+    const result = compress(input, 'math.go', 'signaturesOnly');
+    assert.ok(result.includes('func Add(a, b int) int {'), 'should include func signature');
+    assert.ok(result.includes('// ...'), 'should insert body placeholder');
+    assert.ok(!result.includes('return a + b'), 'should drop body');
+  });
+
+  it('keeps type and struct declarations', () => {
+    const input = 'type Point struct {\n\tX, Y float64\n}';
+    const result = compress(input, 'geo.go', 'signaturesOnly');
+    assert.ok(result.includes('type Point struct {'));
+    assert.ok(result.includes('// ...'));
+    assert.ok(!result.includes('X, Y float64'));
+  });
+});
+
+describe('compress — signaturesOnly mode (Rust)', () => {
+  it('keeps fn signatures and inserts body placeholder', () => {
+    const input = 'fn add(a: i32, b: i32) -> i32 {\n    a + b\n}';
+    const result = compress(input, 'lib.rs', 'signaturesOnly');
+    assert.ok(result.includes('fn add(a: i32, b: i32) -> i32 {'), 'should include fn signature');
+    assert.ok(result.includes('// ...'), 'should insert body placeholder');
+    assert.ok(!result.includes('a + b'), 'should drop body');
+  });
+
+  it('keeps struct declarations and drops fields', () => {
+    const input = 'struct Point {\n    x: f32,\n    y: f32,\n}';
+    const result = compress(input, 'geo.rs', 'signaturesOnly');
+    assert.ok(result.includes('struct Point {'));
+    assert.ok(result.includes('// ...'));
+    assert.ok(!result.includes('x: f32'));
+  });
+
+  it('keeps enum declarations and drops variants', () => {
+    const input = 'enum Direction {\n    North,\n    South,\n}';
+    const result = compress(input, 'dir.rs', 'signaturesOnly');
+    assert.ok(result.includes('enum Direction {'));
+    assert.ok(result.includes('// ...'));
+    assert.ok(!result.includes('North,'));
+  });
+});
+
+describe('compress — signaturesOnly mode (Java)', () => {
+  it('keeps class declarations and drops all member bodies', () => {
+    const input = 'class Calculator {\n    public int add(int a, int b) {\n        return a + b;\n    }\n}';
+    const result = compress(input, 'Calculator.java', 'signaturesOnly');
+    assert.ok(result.includes('class Calculator {'), 'should include class signature');
+    assert.ok(result.includes('// ...'), 'should insert body placeholder');
+    assert.ok(!result.includes('return a + b'), 'should drop method body');
+    assert.ok(!result.includes('public int add'), 'members inside class body are dropped');
+  });
+
+  it('keeps interface declarations and drops member bodies', () => {
+    const input = 'interface Adder {\n    int add(int a, int b);\n}';
+    const result = compress(input, 'Adder.java', 'signaturesOnly');
+    assert.ok(result.includes('interface Adder {'));
+    assert.ok(!result.includes('int add(int a'));
+  });
+});
+
+describe('compress — signaturesOnly mode (C struct)', () => {
+  it('keeps struct declarations and drops fields', () => {
+    const input = 'struct Point {\n    float x;\n    float y;\n};';
+    const result = compress(input, 'geo.c', 'signaturesOnly');
+    assert.ok(result.includes('struct Point {'));
+    assert.ok(result.includes('// ...'));
+    assert.ok(!result.includes('float x'));
+    assert.ok(!result.includes('float y'));
+  });
+});
+
+describe('compress — signaturesOnly mode (Python docstrings)', () => {
+  it('preserves the docstring line immediately after a def', () => {
+    const input = 'def describe():\n    """Returns a description."""\n    return "hello"';
+    const result = compress(input, 'foo.py', 'signaturesOnly');
+    assert.ok(result.includes('def describe():'), 'should include function signature');
+    assert.ok(result.includes('"""Returns a description."""'), 'should preserve docstring');
+    assert.ok(!result.includes('return "hello"'), 'should drop function body after docstring');
+  });
+
+  it('preserves the docstring line immediately after a class', () => {
+    const input = "class Greeter:\n    '''A simple greeter.'''\n    def hello(self):\n        print('hi')";
+    const result = compress(input, 'foo.py', 'signaturesOnly');
+    assert.ok(result.includes('class Greeter:'));
+    assert.ok(result.includes("'''A simple greeter.'''"));
+    assert.ok(!result.includes("print('hi')"));
   });
 });

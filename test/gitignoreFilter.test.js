@@ -1,10 +1,14 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const {
   parseGitignoreContent,
   matchesGitignorePattern,
   isIgnoredByGitignorePatterns,
+  loadGitignorePatterns,
 } = require('../src/gitignoreFilter');
 
 describe('parseGitignoreContent', () => {
@@ -113,5 +117,57 @@ describe('isIgnoredByGitignorePatterns', () => {
 
   it('returns false for empty patterns array', () => {
     assert.equal(isIgnoredByGitignorePatterns([], 'anything.js'), false);
+  });
+});
+
+describe('loadGitignorePatterns', () => {
+  let tmpDir;
+
+  before(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitignore-test-'));
+  });
+
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns empty array when rootFsPath is null', async () => {
+    const patterns = await loadGitignorePatterns(null);
+    assert.deepEqual(patterns, []);
+  });
+
+  it('returns empty array when rootFsPath is undefined', async () => {
+    const patterns = await loadGitignorePatterns(undefined);
+    assert.deepEqual(patterns, []);
+  });
+
+  it('returns empty array when no .gitignore file exists in the directory', async () => {
+    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'no-gitignore-'));
+    try {
+      const patterns = await loadGitignorePatterns(emptyDir);
+      assert.deepEqual(patterns, []);
+    } finally {
+      fs.rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  it('parses patterns from a .gitignore file in the given directory', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.gitignore'),
+      'node_modules\n*.log\n# comment\ndist/\n!important.log\n'
+    );
+    const patterns = await loadGitignorePatterns(tmpDir);
+    assert.deepEqual(patterns, ['node_modules', '*.log', 'dist']);
+  });
+
+  it('returns empty array for a .gitignore that contains only comments and blank lines', async () => {
+    const commentOnlyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'comments-only-'));
+    try {
+      fs.writeFileSync(path.join(commentOnlyDir, '.gitignore'), '# comment\n\n# another\n');
+      const patterns = await loadGitignorePatterns(commentOnlyDir);
+      assert.deepEqual(patterns, []);
+    } finally {
+      fs.rmSync(commentOnlyDir, { recursive: true, force: true });
+    }
   });
 });
