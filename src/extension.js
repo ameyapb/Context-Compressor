@@ -3,6 +3,7 @@ const path = require('path');
 const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } = require('./models');
 const { extractRelativeImportSpecifiers, buildCandidatePaths, buildTestCandidatePaths } = require('./relatedFilesResolver');
 const { collectFileUris, countTokensInUris } = require('./folderCounter');
+const { loadGitignorePatterns } = require('./gitignoreFilter');
 const {
   ContextFileTreeProvider,
   initialize: initializeContextBuilder,
@@ -33,6 +34,10 @@ const DEBOUNCE_DELAY_MS = 300;
 
 function toK(n) {
   return `${Math.round(n / 1000)}K`;
+}
+
+function getWorkspaceRootFsPath() {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? null;
 }
 
 let statusBarItem;
@@ -162,6 +167,8 @@ function activate(context) {
       }
       const encoderFn = getEncoderForModel(currentModelId);
       const model = getModelById(currentModelId);
+      const workspaceRootFsPath = getWorkspaceRootFsPath();
+      const gitignorePatterns = await loadGitignorePatterns(workspaceRootFsPath);
       try {
         const { totalTokenCount, fileCount } = await vscode.window.withProgress(
           {
@@ -169,7 +176,7 @@ function activate(context) {
             title: 'Counting tokens...',
             cancellable: false,
           },
-          () => countTokensInUris(targetUris, encoderFn)
+          () => countTokensInUris(targetUris, encoderFn, gitignorePatterns, workspaceRootFsPath)
         );
         vscode.window.showInformationMessage(
           `Total: ${totalTokenCount.toLocaleString()} tokens across ${fileCount} file${fileCount === 1 ? '' : 's'} (${model.label})`
@@ -201,8 +208,10 @@ function activate(context) {
         targetUris = picked;
       }
 
+      const workspaceRootFsPath = getWorkspaceRootFsPath();
+      const gitignorePatterns = await loadGitignorePatterns(workspaceRootFsPath);
       const allFileUris = (
-        await Promise.all(targetUris.map((u) => collectFileUris(u)))
+        await Promise.all(targetUris.map((u) => collectFileUris(u, new Set(), gitignorePatterns, workspaceRootFsPath)))
       ).flat();
 
       if (allFileUris.length === 0) {
