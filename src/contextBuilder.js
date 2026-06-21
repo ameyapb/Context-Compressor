@@ -45,6 +45,11 @@ class ContextFileItem extends vscode.TreeItem {
     this.checkboxState = fileEntry.included
       ? vscode.TreeItemCheckboxState.Checked
       : vscode.TreeItemCheckboxState.Unchecked;
+    this.command = {
+      command: 'vscode.open',
+      title: 'Open File',
+      arguments: [fileEntry.uri],
+    };
   }
 }
 
