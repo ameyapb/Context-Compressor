@@ -1,5 +1,7 @@
 const vscode = require('vscode');
+const path = require('path');
 const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } = require('./models');
+const { extractRelativeImportSpecifiers, buildCandidatePaths, buildTestCandidatePaths } = require('./relatedFilesResolver');
 const { collectFileUris, countTokensInUris } = require('./folderCounter');
 const {
   ContextFileTreeProvider,
@@ -286,6 +288,94 @@ function activate(context) {
     }
   );
   context.subscriptions.push(assemblePromptCommand);
+
+  const suggestRelatedFilesCommand = vscode.commands.registerCommand(
+    'token-budget-builder.suggestRelatedFiles',
+    async () => {
+      const IMPORT_DETAIL_LABEL = 'Imported by this file';
+      const TEST_DETAIL_LABEL = 'Test file for this module';
+      const SUGGEST_TITLE = 'Suggest Related Files';
+      const SUGGEST_PLACEHOLDER = 'Choose files to add to context';
+      const NO_FILES_MESSAGE =
+        'No imports or test files found. This works with JS, TS, Python, and CSS files that have relative imports.';
+
+      async function filterToExistingUris(absPaths, seen) {
+        return (
+          await Promise.all(
+            absPaths.map(async (absPath) => {
+              if (seen.has(absPath)) return null;
+              seen.add(absPath);
+              const uri = vscode.Uri.file(absPath);
+              try {
+                await vscode.workspace.fs.stat(uri);
+                return uri;
+              } catch {
+                return null;
+              }
+            })
+          )
+        ).filter(Boolean);
+      }
+
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showInformationMessage('No active file open.');
+        return;
+      }
+
+      const activeFilePath = editor.document.uri.fsPath;
+      const activeFileDir = path.dirname(activeFilePath);
+      const text = editor.document.getText();
+
+      const specifiers = extractRelativeImportSpecifiers(text, activeFilePath);
+      const importCandidates = specifiers.flatMap((s) => buildCandidatePaths(s, activeFileDir));
+      const testCandidates = buildTestCandidatePaths(activeFilePath);
+
+      const seen = new Set();
+      const importUris = await filterToExistingUris(importCandidates, seen);
+      const testUris = await filterToExistingUris(testCandidates, seen);
+
+      if (importUris.length === 0 && testUris.length === 0) {
+        vscode.window.showInformationMessage(NO_FILES_MESSAGE);
+        return;
+      }
+
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+      function toPickItem(uri, detail) {
+        return {
+          label: workspaceRoot
+            ? path.relative(workspaceRoot, uri.fsPath)
+            : path.basename(uri.fsPath),
+          detail,
+          uri,
+          picked: true,
+        };
+      }
+
+      const items = [];
+      if (importUris.length > 0) {
+        items.push({ label: 'Imports', kind: vscode.QuickPickItemKind.Separator });
+        items.push(...importUris.map((uri) => toPickItem(uri, IMPORT_DETAIL_LABEL)));
+      }
+      if (testUris.length > 0) {
+        items.push({ label: 'Test files', kind: vscode.QuickPickItemKind.Separator });
+        items.push(...testUris.map((uri) => toPickItem(uri, TEST_DETAIL_LABEL)));
+      }
+
+      const selected = await vscode.window.showQuickPick(items, {
+        canPickMany: true,
+        title: SUGGEST_TITLE,
+        placeHolder: SUGGEST_PLACEHOLDER,
+      });
+      if (!selected || selected.length === 0) return;
+
+      await addFilesToContext(selected.map((item) => item.uri));
+      refreshContextDisplay();
+      vscode.window.showInformationMessage(`Added ${selected.length} file(s) to context.`);
+    }
+  );
+  context.subscriptions.push(suggestRelatedFilesCommand);
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(() => refreshContextDisplay())

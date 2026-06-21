@@ -55,7 +55,7 @@
     "viewsWelcome": [
       {
         "view": "token-budget-builder-files",
-        "contents": "No files in context yet.\n\nRight-click files or folders in the Explorer and choose **Add to Context**. Check the boxes to include or exclude files, then copy the assembled prompt to your clipboard with your token budget in view.\n\n[Add Files](command:token-budget-builder.addToContext)"
+        "contents": "Open the file you're working on, then click Suggest Related Files — it reads your imports and finds adjacent test files automatically.\n\n[Suggest Related Files](command:token-budget-builder.suggestRelatedFiles)\n\nOr add files manually from the Explorer.\n\n[Add Files](command:token-budget-builder.addToContext)"
       }
     ],
     "commands": [
@@ -96,6 +96,11 @@
         "command": "token-budget-builder.assemblePrompt",
         "title": "Assemble & Copy Prompt",
         "icon": "$(copy)"
+      },
+      {
+        "command": "token-budget-builder.suggestRelatedFiles",
+        "title": "Context Compressor: Suggest Related Files",
+        "icon": "$(type-hierarchy-sub)"
       }
     ],
     "menus": {
@@ -109,6 +114,13 @@
           "group": "z_contextcompressor@2"
         }
       ],
+      "editor/context": [
+        {
+          "command": "token-budget-builder.suggestRelatedFiles",
+          "group": "z_contextcompressor@1",
+          "when": "editorIsOpen"
+        }
+      ],
       "view/title": [
         {
           "command": "token-budget-builder.assemblePrompt",
@@ -116,24 +128,29 @@
           "group": "navigation@1"
         },
         {
-          "command": "token-budget-builder.addToContext",
+          "command": "token-budget-builder.suggestRelatedFiles",
           "when": "view == token-budget-builder-files",
           "group": "navigation@2"
         },
         {
-          "command": "token-budget-builder.setCompressionMode",
+          "command": "token-budget-builder.addToContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@3"
         },
         {
-          "command": "token-budget-builder.clearContext",
+          "command": "token-budget-builder.setCompressionMode",
           "when": "view == token-budget-builder-files",
           "group": "navigation@4"
         },
         {
-          "command": "token-budget-builder.selectModel",
+          "command": "token-budget-builder.clearContext",
           "when": "view == token-budget-builder-files",
           "group": "navigation@5"
+        },
+        {
+          "command": "token-budget-builder.selectModel",
+          "when": "view == token-budget-builder-files",
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [

@@ -36,7 +36,7 @@ Requires a Personal Access Token from https://marketplace.visualstudio.com/manag
 - `activationEvents` is removed from `package.json` (VS Code 1.74+ infers them from `contributes`; `"*"` is deprecated).
 - `.vscodeignore` excludes `PLAN.md`, `test/`, and `.vscode/`.
 
-There are no automated tests and no lint scripts defined.
+Tests live in `test/` and are run with `npm test` (mocha). No lint scripts are defined.
 
 ## Coding Rules
 
@@ -62,18 +62,21 @@ These apply to all code in this repository, no exceptions.
 
 **Production mindset** — Every change must be treated as if it ships to production the next day. No half-finished logic, no debug leftovers, no disabled safety checks.
 
-**Keep this file updated** — If a change is made that alters any of the above rules or the architecture described below, update this file in the same commit.
+**Tests** — Every new module or exported function must have a corresponding test file in `test/` added in the same change. Run `npm test` before considering any implementation complete; all tests must pass. Pure modules (no VS Code dependency) are always testable — there is no excuse to skip.
+
+**Keep this file updated** — Update this file in the same change whenever: the architecture changes (new module, renamed export, new command), a coding rule is added or modified, or a development workflow step changes.
 
 ## Architecture
 
-The extension is split across six modules under `src/`:
+The extension is split across seven modules under `src/`:
 
-- **[src/extension.js](src/extension.js)** — activation, command registration, status bar lifecycle. The only file that imports `vscode`. Registers eight commands: `countTokens`, `selectModel`, `countFolderTokens`, `addToContext`, `removeFromContext`, `clearContext`, `setCompressionMode`, `assemblePrompt`.
+- **[src/extension.js](src/extension.js)** — activation, command registration, status bar lifecycle. The only file that imports `vscode`. Registers nine commands: `countTokens`, `selectModel`, `countFolderTokens`, `addToContext`, `removeFromContext`, `clearContext`, `setCompressionMode`, `assemblePrompt`, `suggestRelatedFiles`.
 - **[src/models.js](src/models.js)** — model definitions and encoder resolution. Exports `SUPPORTED_MODELS`, `DEFAULT_MODEL_ID`, `getEncoderForModel`, and `getModelById`. No VS Code dependency.
 - **[src/fileReader.js](src/fileReader.js)** — shared utility for reading a VS Code URI as UTF-8 text. Exports `readFileAsText(uri)`, returning the file contents as a string or `null` on any error (binary, missing, or permission failure). Used by both `folderCounter.js` and `contextBuilder.js` to avoid duplicating the read-and-decode pattern.
 - **[src/folderCounter.js](src/folderCounter.js)** — recursive file collection and aggregate token counting for the Explorer context menu command. Uses `vscode.workspace.fs` to read directories and files. Binary files are skipped silently (UTF-8 decode failure returns 0). Overlapping selections (e.g. a folder and a file inside it) are deduplicated by URI.
 - **[src/contextBuilder.js](src/contextBuilder.js)** — manages the context file list shown in the sidebar tree view (`ContextFileTreeProvider`). Tracks which files are included, computes per-file token counts, handles checkbox state changes, and assembles the final prompt text with fenced code blocks. Depends on `compressor.js` for compression and `vscode` for the tree and filesystem APIs.
 - **[src/compressor.js](src/compressor.js)** — pure text compression logic with no VS Code dependency. Exports `compress(text, filePath, compressionModeId)` and `getLanguageTag(filePath)`. Supports four modes: `none`, `stripComments`, `collapseWhitespace`, and `signaturesOnly` (with separate extractors for Python and brace-language grammars). Extension-to-language metadata is stored in a single `EXTENSION_METADATA` map shared by both `detectLanguage` and `getLanguageTag`.
+- **[src/relatedFilesResolver.js](src/relatedFilesResolver.js)** — pure text analysis with no VS Code dependency. Exports `extractRelativeImportSpecifiers(text, filePath)`, `buildCandidatePaths(specifier, importingFileDir)`, and `buildTestCandidatePaths(activeFilePath)`. Used by the `suggestRelatedFiles` command to find imported modules and adjacent test files for the active editor without any AI or API calls.
 
 Key design points:
 
