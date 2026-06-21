@@ -46,6 +46,26 @@ describe('slugifyTemplateName', () => {
   it('handles an already-valid slug unchanged', () => {
     assert.equal(slugifyTemplateName('plan-feature'), 'plan-feature');
   });
+
+  it('returns "template" for an empty string', () => {
+    assert.equal(slugifyTemplateName(''), 'template');
+  });
+
+  it('returns "template" for whitespace-only input', () => {
+    assert.equal(slugifyTemplateName('   '), 'template');
+  });
+
+  it('handles numeric-only names correctly', () => {
+    assert.equal(slugifyTemplateName('123'), '123');
+  });
+
+  it('converts uppercase letters to lowercase', () => {
+    assert.equal(slugifyTemplateName('A B C'), 'a-b-c');
+  });
+
+  it('strips special characters that are not alphanumeric or hyphens', () => {
+    assert.equal(slugifyTemplateName('hello@world!'), 'helloworld');
+  });
 });
 
 describe('getAllTemplates', () => {
@@ -106,6 +126,21 @@ describe('saveTemplate', () => {
     const storage = makeStorage();
     saveTemplate(storage, 'Empty', '');
     assert.equal(getAllTemplates(storage)['empty'].body, '');
+  });
+
+  it('uses the "template" fallback id when the name contains only special characters', () => {
+    const storage = makeStorage();
+    const id = saveTemplate(storage, '!!!', 'some body');
+    assert.equal(id, 'template');
+    assert.ok('template' in getAllTemplates(storage));
+    assert.equal(getAllTemplates(storage)['template'].body, 'some body');
+  });
+
+  it('stores the original (un-slugified) name alongside the slug', () => {
+    const storage = makeStorage();
+    saveTemplate(storage, 'My Template', 'body text');
+    const templates = getAllTemplates(storage);
+    assert.equal(templates['my-template'].name, 'My Template');
   });
 });
 

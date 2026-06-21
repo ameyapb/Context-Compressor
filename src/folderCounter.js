@@ -66,7 +66,6 @@ async function collectFileUris(uri, visited = new Set(), gitignorePatterns = nul
 async function countTokensInUri(uri, encoderFn) {
   const text = await readFileAsText(uri);
   if (text === null) {
-    console.warn(`token-budget-builder: skipping ${uri.fsPath}: binary or unreadable`);
     return 0;
   }
   return encoderFn(text).length;

@@ -19,6 +19,11 @@ const vscodeMock = {
   },
   TreeItemCollapsibleState: { None: 0 },
   TreeItemCheckboxState: { Unchecked: 0, Checked: 1 },
+  MarkdownString: class {
+    constructor() { this._value = ''; }
+    appendMarkdown(s) { this._value += s; return this; }
+    appendText(s) { this._value += s; return this; }
+  },
   workspace: { workspaceFolders: null },
 };
 
@@ -35,6 +40,7 @@ const fileReaderCachePath = require.resolve('../src/fileReader');
 delete require.cache[fileReaderCachePath];
 
 const {
+  ContextFileTreeProvider,
   formatBudget,
   getCompressionModeLabel,
   getCompressionModeId,
@@ -507,5 +513,156 @@ describe('applyNewEncoder', () => {
       Array.from({ length: Math.ceil(text.length / 2) }, (_, i) => i);
     await applyNewEncoder(doubleEncoder);
     assert.equal(getTotalIncludedTokens(), 8); // ceil(16/2) = 8
+  });
+});
+
+describe('formatBudget — additional edge cases', () => {
+  it('formats total tokens above 999 with a thousands separator', () => {
+    const result = formatBudget(1000, 25000);
+    assert.ok(result.includes('1,000'), 'total should be formatted with thousands separator');
+  });
+
+  it('rounds the practical limit K label to the nearest thousand', () => {
+    const result = formatBudget(0, 1500);
+    assert.ok(result.includes('2K'), '1500 rounds to 2K');
+  });
+
+  it('rounds down correctly for values below the midpoint', () => {
+    const result = formatBudget(0, 1400);
+    assert.ok(result.includes('1K'), '1400 rounds to 1K');
+  });
+});
+
+describe('ContextFileTreeProvider', () => {
+  beforeEach(() => {
+    initialize(mockEncoder);
+    clearAllContext();
+    mockReadFileAsText = async () => 'content';
+  });
+
+  it('getChildren returns one ContextFileItem per file in context', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider();
+    const items = provider.getChildren();
+    assert.equal(items.length, 1);
+    assert.equal(items[0].uriString, uri.toString());
+  });
+
+  it('getChildren returns an empty array for a non-root (nested) element', () => {
+    const provider = new ContextFileTreeProvider();
+    assert.deepEqual(provider.getChildren({ label: 'something' }), []);
+  });
+
+  it('getChildren returns an empty array when context is empty', () => {
+    const provider = new ContextFileTreeProvider();
+    assert.deepEqual(provider.getChildren(), []);
+  });
+
+  it('getTreeItem returns the element passed to it unchanged', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider();
+    const [item] = provider.getChildren();
+    assert.strictEqual(provider.getTreeItem(item), item);
+  });
+
+  it('item label is the file basename when no workspace root is configured', async () => {
+    const uri = makeUri('/project/src/utils.ts');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider();
+    const [item] = provider.getChildren();
+    assert.equal(item.label, 'utils.ts');
+  });
+
+  it('item contextValue is "contextFile"', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider();
+    const [item] = provider.getChildren();
+    assert.equal(item.contextValue, 'contextFile');
+  });
+
+  it('item checkboxState is Checked for an included file', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider();
+    const [item] = provider.getChildren();
+    assert.equal(item.checkboxState, vscodeMock.TreeItemCheckboxState.Checked);
+  });
+
+  it('item checkboxState is Unchecked for an excluded file', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const stateItem = { uriString: uri.toString() };
+    handleCheckboxStateChange([[stateItem, vscodeMock.TreeItemCheckboxState.Unchecked]]);
+    const provider = new ContextFileTreeProvider();
+    const [treeItem] = provider.getChildren();
+    assert.equal(treeItem.checkboxState, vscodeMock.TreeItemCheckboxState.Unchecked);
+  });
+
+  it('item description includes compression savings percentage when compression reduces tokens', async () => {
+    // Commented text compresses significantly under stripComments
+    mockReadFileAsText = async () => '// comment one\n// comment two\n// comment three\nconst x = 1;';
+    await applyCompressionMode('stripComments');
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider();
+    const [item] = provider.getChildren();
+    assert.ok(item.description.includes('tokens'), 'description should include the word "tokens"');
+    assert.ok(item.description.includes('%'), 'description should include a savings percentage');
+    assert.ok(item.description.includes('-'), 'description should show a reduction');
+  });
+
+  it('fires onDidChangeTreeData when files are added to context', async () => {
+    const provider = new ContextFileTreeProvider();
+    let fired = false;
+    provider.onDidChangeTreeData(() => { fired = true; });
+    const uri = makeUri('/project/src/new.js');
+    await addFilesToContext([uri]);
+    assert.ok(fired, 'onDidChangeTreeData should fire when context changes');
+  });
+
+  it('fires onDidChangeTreeData when context is cleared', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider();
+    let fired = false;
+    provider.onDidChangeTreeData(() => { fired = true; });
+    clearAllContext();
+    assert.ok(fired, 'onDidChangeTreeData should fire when context is cleared');
+  });
+
+  it('reflects multiple files when several are added', async () => {
+    const uriA = makeUri('/project/src/a.js');
+    const uriB = makeUri('/project/src/b.ts');
+    const uriC = makeUri('/project/src/c.py');
+    await addFilesToContext([uriA, uriB, uriC]);
+    const provider = new ContextFileTreeProvider();
+    const items = provider.getChildren();
+    assert.equal(items.length, 3);
+  });
+});
+
+describe('assemblePromptText — with workspace root', () => {
+  const path = require('path');
+
+  beforeEach(() => {
+    initialize(mockEncoder);
+    clearAllContext();
+  });
+
+  afterEach(() => {
+    vscodeMock.workspace.workspaceFolders = null;
+  });
+
+  it('uses a workspace-relative path as the heading when workspaceFolders is set', async () => {
+    vscodeMock.workspace.workspaceFolders = [{ uri: { fsPath: '/project' } }];
+    mockReadFileAsText = async () => 'const x = 1;';
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const result = await assemblePromptText();
+    const expectedPath = path.join('src', 'index.js');
+    assert.ok(result.includes(`### ${expectedPath}`), `heading should be "${expectedPath}"`);
   });
 });

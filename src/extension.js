@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const path = require('path');
+const crypto = require('crypto');
 const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } = require('./models');
 const { extractRelativeImportSpecifiers, buildCandidatePaths, buildTestCandidatePaths } = require('./relatedFilesResolver');
 const { collectFileUris, countTokensInUris } = require('./folderCounter');
@@ -52,7 +53,9 @@ class PromptTemplateItem extends vscode.TreeItem {
       ? `${flatBody.slice(0, TEMPLATE_BODY_PREVIEW_LENGTH)}...`
       : flatBody;
     const tooltip = new vscode.MarkdownString();
-    tooltip.appendMarkdown(`**${name}**\n\n\`\`\`\n${body}\n\`\`\``);
+    tooltip.appendText(name);
+    tooltip.appendText('\n\n');
+    tooltip.appendText(body);
     this.tooltip = tooltip;
     this.command = {
       command: 'token-budget-builder.openTemplate',
@@ -98,8 +101,7 @@ const TEMPLATE_PREVIEW_WEBVIEW_TYPE = 'token-budget-builder.templatePreview';
 const TEMPLATE_PREVIEW_COPY_COMMAND = 'copy';
 
 function generateNonce() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return crypto.randomBytes(24).toString('hex');
 }
 
 function buildTemplatePreviewHtml(templateName, templateBody) {
@@ -694,9 +696,13 @@ function activate(context) {
         if (!selected || selected.kind === vscode.QuickPickItemKind.Separator) return;
 
         const paths = presets[selected.presetName];
-        const resolvedUris = paths.map((relativePath) =>
-          vscode.Uri.joinPath(workspaceFolder.uri, relativePath)
-        );
+        const workspaceRootFsPath = workspaceFolder.uri.fsPath;
+        const resolvedUris = paths.flatMap((relativePath) => {
+          if (relativePath.split(/[/\\]/).some((segment) => segment === '..')) return [];
+          const resolvedUri = vscode.Uri.joinPath(workspaceFolder.uri, relativePath);
+          if (!resolvedUri.fsPath.startsWith(workspaceRootFsPath)) return [];
+          return [resolvedUri];
+        });
 
         if (!selected.isMerge) {
           clearAllContext();
@@ -744,7 +750,7 @@ function activate(context) {
         TEMPLATE_PREVIEW_WEBVIEW_TYPE,
         `Preview: ${template.name}`,
         vscode.ViewColumn.One,
-        { enableScripts: true, retainContextWhenHidden: false }
+        { enableScripts: true, retainContextWhenHidden: false, localResourceRoots: [] }
       );
       panel.webview.html = buildTemplatePreviewHtml(template.name, template.body);
       panel.webview.onDidReceiveMessage(async (message) => {

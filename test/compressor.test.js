@@ -360,6 +360,85 @@ describe('compress — signaturesOnly mode (C struct)', () => {
   });
 });
 
+describe('getLanguageTag — shell extensions', () => {
+  it('maps .sh extension to sh tag', () => {
+    assert.equal(getLanguageTag('deploy.sh'), 'sh');
+  });
+
+  it('maps .bash extension to sh tag', () => {
+    assert.equal(getLanguageTag('setup.bash'), 'sh');
+  });
+});
+
+describe('compress — stripComments mode (unknown-language files)', () => {
+  it('leaves HTML content unchanged including HTML comments', () => {
+    const input = '<!-- header --><p>hello</p>';
+    const result = compress(input, 'page.html', 'stripComments');
+    assert.ok(result.includes('<!-- header -->'), 'HTML comments should be preserved');
+    assert.ok(result.includes('<p>hello</p>'));
+  });
+
+  it('leaves JSON content unchanged', () => {
+    const input = '{"key": "value", "n": 1}';
+    const result = compress(input, 'data.json', 'stripComments');
+    assert.equal(result, input);
+  });
+
+  it('leaves shell script hash comments unchanged (.sh is unknown language)', () => {
+    const input = '#!/bin/bash\n# setup script\necho "done"';
+    const result = compress(input, 'setup.sh', 'stripComments');
+    assert.ok(result.includes('#!/bin/bash'), 'shebang should be preserved');
+    assert.ok(result.includes('# setup script'), 'hash comments should be preserved in sh files');
+    assert.ok(result.includes('echo "done"'));
+  });
+
+  it('leaves YAML content unchanged', () => {
+    const input = '# yaml comment\nkey: value';
+    const result = compress(input, 'config.yaml', 'stripComments');
+    assert.equal(result, input);
+  });
+});
+
+describe('compress — collapseWhitespace blank-line boundary behaviour', () => {
+  it('preserves a single blank line (exactly 2 consecutive newlines)', () => {
+    const input = 'line1\n\nline2';
+    const result = compress(input, 'foo.js', 'collapseWhitespace');
+    assert.equal(result, 'line1\n\nline2');
+  });
+
+  it('collapses exactly two blank lines (3 consecutive newlines) to one blank line', () => {
+    const input = 'line1\n\n\nline2';
+    const result = compress(input, 'foo.js', 'collapseWhitespace');
+    assert.equal(result, 'line1\n\nline2');
+  });
+
+  it('does not strip hash comments in a Python file — only collapses whitespace', () => {
+    const input = '# comment\n\n\n\ndef foo():\n    pass';
+    const result = compress(input, 'script.py', 'collapseWhitespace');
+    assert.ok(result.includes('# comment'), 'collapseWhitespace must not strip Python comments');
+    assert.ok(!result.includes('\n\n\n'), 'should collapse 3+ blank lines');
+    assert.ok(result.includes('def foo():'));
+  });
+});
+
+describe('compress — signaturesOnly mode (TypeScript)', () => {
+  it('applies brace-language extraction for .ts files', () => {
+    const input = 'function greet(name: string): string {\n  return "hello " + name;\n}';
+    const result = compress(input, 'greeter.ts', 'signaturesOnly');
+    assert.ok(result.includes('function greet(name: string): string {'), 'should keep signature');
+    assert.ok(result.includes('// ...'), 'should insert body placeholder');
+    assert.ok(!result.includes('return "hello "'), 'should drop body');
+  });
+
+  it('applies brace-language extraction for .tsx files', () => {
+    const input = 'const Button = ({ label }: Props) => {\n  return <button>{label}</button>;\n};';
+    const result = compress(input, 'Button.tsx', 'signaturesOnly');
+    assert.ok(result.includes('const Button'), 'should keep arrow function declaration');
+    assert.ok(result.includes('// ...'), 'should insert body placeholder');
+    assert.ok(!result.includes('<button>'), 'should drop JSX body');
+  });
+});
+
 describe('compress — signaturesOnly mode (Python docstrings)', () => {
   it('preserves the docstring line immediately after a def', () => {
     const input = 'def describe():\n    """Returns a description."""\n    return "hello"';
