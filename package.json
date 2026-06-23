@@ -49,9 +49,7 @@
     "Machine Learning",
     "Other"
   ],
-  "activationEvents": [
-    "onStartupFinished"
-  ],
+  "activationEvents": [],
   "main": "./src/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -77,6 +75,10 @@
         {
           "id": "token-budget-builder-templates",
           "name": "Prompt Templates"
+        },
+        {
+          "id": "token-budget-builder-filter",
+          "name": "Log Filter"
         }
       ]
     },
@@ -176,6 +178,22 @@
       {
         "command": "token-budget-builder.openTemplate",
         "title": "Open Template"
+      },
+      {
+        "command": "token-budget-builder.filterLines",
+        "title": "Context Compressor: Keep Matching Lines"
+      },
+      {
+        "command": "token-budget-builder.filterLinesInverse",
+        "title": "Context Compressor: Remove Matching Lines"
+      },
+      {
+        "command": "token-budget-builder.filterLinesFromSelection",
+        "title": "Context Compressor: Filter from Selection"
+      },
+      {
+        "command": "token-budget-builder.setContextLines",
+        "title": "Context Compressor: Set Context Lines"
       }
     ],
     "menus": {
@@ -199,6 +217,21 @@
           "command": "token-budget-builder.suggestRelatedFiles",
           "group": "z_contextcompressor@2",
           "when": "editorIsOpen"
+        },
+        {
+          "command": "token-budget-builder.filterLines",
+          "group": "z_contextcompressor@3",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "token-budget-builder.filterLinesInverse",
+          "group": "z_contextcompressor@4",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "token-budget-builder.filterLinesFromSelection",
+          "group": "z_contextcompressor@5",
+          "when": "editorHasSelection"
         }
       ],
       "view/title": [

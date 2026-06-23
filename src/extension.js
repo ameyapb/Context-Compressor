@@ -36,10 +36,22 @@ const {
   slugifyTemplateName,
 } = require('./templateManager');
 const { BuildPromptTreeProvider } = require('./buildPromptProvider');
+const { FilterPanelProvider } = require('./filterPanelProvider');
+const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('./logFilterContentProvider');
+const {
+  filterLines,
+  FILTER_HEADER_TAG,
+  CONTEXT_SEPARATOR,
+  escapePatternLiteral,
+  parseFilterHeader,
+  buildFilterHeader,
+} = require('./logFilter');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';
 const TEMPLATE_DRAFT_FILENAME = 'template-draft.md';
+const CONTEXT_LINES_STORAGE_KEY = 'log-filter-context-lines';
+const CONTEXT_LINES_OPTIONS = [0, 1, 2, 5];
 
 class PromptTemplateItem extends vscode.TreeItem {
   constructor(templateId, name, body) {
@@ -323,6 +335,23 @@ function activate(context) {
 
   templateTreeView.title = 'Prompt Templates';
 
+  const logFilterContentProvider = new LogFilterContentProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(LOG_FILTER_SCHEME, logFilterContentProvider)
+  );
+  let filterResultCounter = 0;
+
+  function getContextLines() {
+    return context.workspaceState.get(CONTEXT_LINES_STORAGE_KEY, 0);
+  }
+
+  const filterPanelProvider = new FilterPanelProvider(getContextLines);
+  const filterTreeView = vscode.window.createTreeView('token-budget-builder-filter', {
+    treeDataProvider: filterPanelProvider,
+    showCollapseAll: false,
+  });
+  context.subscriptions.push(filterTreeView);
+
   function refreshTemplateDisplay() {
     promptTemplateTreeProvider.refresh();
   }
@@ -370,6 +399,77 @@ function activate(context) {
 
   initializeContextBuilder(getEncoderForModel(currentModelId));
   refreshContextDisplay();
+
+  function resolveFilterPattern(input) {
+    const regexMatch = input.match(/^\/(.+)\/([gimsuy]*)$/);
+    if (regexMatch) {
+      return { pattern: regexMatch[1], flags: regexMatch[2] || '' };
+    }
+    return { pattern: escapePatternLiteral(input), flags: 'i' };
+  }
+
+  async function runFilterCommand(invert, preSuppliedPattern) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showInformationMessage('No active editor.');
+      return;
+    }
+
+    let resolvedPattern;
+    if (preSuppliedPattern !== null) {
+      resolvedPattern = { pattern: preSuppliedPattern, flags: 'i' };
+    } else {
+      const rawInput = await vscode.window.showInputBox({
+        prompt: invert
+          ? 'Remove lines containing: (wrap in /slashes/ for regex)'
+          : 'Keep lines containing: (wrap in /slashes/ for regex)',
+        placeHolder: invert ? 'debug' : 'error',
+      });
+      if (rawInput === undefined || rawInput === null) return;
+      if (rawInput.trim() === '') return;
+      resolvedPattern = resolveFilterPattern(rawInput);
+    }
+
+    const contextLines = getContextLines();
+    const text = editor.document.getText();
+    const rawLines = text.split('\n');
+    const parsed = parseFilterHeader(rawLines[0]);
+
+    let contentText, sourceForHeader, baseTotal, existingChain;
+    if (parsed) {
+      contentText = rawLines.slice(1).join('\n');
+      sourceForHeader = parsed.source;
+      baseTotal = parsed.total;
+      existingChain = parsed.chain;
+    } else {
+      contentText = text;
+      sourceForHeader = path.basename(editor.document.fileName);
+      baseTotal = rawLines.length;
+      existingChain = [];
+    }
+
+    let result;
+    try {
+      result = filterLines(contentText, resolvedPattern.pattern, {
+        invert,
+        contextBefore: contextLines,
+        contextAfter: contextLines,
+        flags: resolvedPattern.flags,
+      });
+    } catch (err) {
+      vscode.window.showErrorMessage(`Invalid regex: ${err.message}`);
+      return;
+    }
+
+    const newChain = [...existingChain, resolvedPattern.pattern];
+    const header = buildFilterHeader(newChain, sourceForHeader, result.matchedCount, baseTotal);
+    const content = [header, ...result.lines].join('\n');
+    const resultUri = LogFilterContentProvider.createUri(filterResultCounter++);
+    logFilterContentProvider.setContent(resultUri, content);
+    const doc = await vscode.workspace.openTextDocument(resultUri);
+    await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+    filterPanelProvider.refresh();
+  }
 
   context.subscriptions.push(
     treeView.onDidChangeCheckboxState((event) => {
@@ -1000,8 +1100,71 @@ function activate(context) {
   );
   context.subscriptions.push(suggestRelatedFilesCommand);
 
+  const filterLinesCommand = vscode.commands.registerCommand(
+    'token-budget-builder.filterLines',
+    () => runFilterCommand(false, null)
+  );
+  context.subscriptions.push(filterLinesCommand);
+
+  const filterLinesInverseCommand = vscode.commands.registerCommand(
+    'token-budget-builder.filterLinesInverse',
+    () => runFilterCommand(true, null)
+  );
+  context.subscriptions.push(filterLinesInverseCommand);
+
+  const filterLinesFromSelectionCommand = vscode.commands.registerCommand(
+    'token-budget-builder.filterLinesFromSelection',
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+      let raw;
+      if (!editor.selection.isEmpty) {
+        raw = editor.document.getText(editor.selection);
+      } else {
+        const wordRange = editor.document.getWordRangeAtPosition(editor.selection.active);
+        raw = wordRange ? editor.document.getText(wordRange) : null;
+      }
+      if (!raw || !raw.trim()) {
+        vscode.window.showInformationMessage('Select text or place cursor on a word to filter by it.');
+        return;
+      }
+      await runFilterCommand(false, escapePatternLiteral(raw.trim()));
+    }
+  );
+  context.subscriptions.push(filterLinesFromSelectionCommand);
+
+  const setContextLinesCommand = vscode.commands.registerCommand(
+    'token-budget-builder.setContextLines',
+    async () => {
+      const current = getContextLines();
+      const items = CONTEXT_LINES_OPTIONS.map(n => ({
+        label: n === 0 ? '0 lines (default)' : `${n} line${n === 1 ? '' : 's'} around each match`,
+        value: n,
+        picked: n === current,
+      }));
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: 'How many lines to show around each match?',
+      });
+      if (!picked) return;
+      await context.workspaceState.update(CONTEXT_LINES_STORAGE_KEY, picked.value);
+      filterPanelProvider.refresh();
+    }
+  );
+  context.subscriptions.push(setContextLinesCommand);
+
+  let selectionRefreshTimer;
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(() => refreshContextDisplay())
+    vscode.window.onDidChangeTextEditorSelection(() => {
+      clearTimeout(selectionRefreshTimer);
+      selectionRefreshTimer = setTimeout(() => filterPanelProvider.refresh(), 150);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      refreshContextDisplay();
+      filterPanelProvider.refresh();
+    })
   );
 
   context.subscriptions.push(
