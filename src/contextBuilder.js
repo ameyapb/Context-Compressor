@@ -9,6 +9,24 @@ let encoderFn = null;
 
 const onDidChangeTreeDataEmitter = new vscode.EventEmitter();
 
+const ACTION_ITEM_COPY_PROMPT_ID = 'copy-prompt';
+const ACTION_ITEM_MODEL_ID = 'model';
+const ACTION_ITEM_COMPRESSION_ID = 'compression';
+const COMMAND_ASSEMBLE_PROMPT = 'token-budget-builder.assemblePrompt';
+const COMMAND_SELECT_MODEL = 'token-budget-builder.selectModel';
+const COMMAND_SET_COMPRESSION = 'token-budget-builder.setCompressionMode';
+
+class ContextPanelActionItem extends vscode.TreeItem {
+  constructor(itemId, label, description, commandId, iconId, tooltip) {
+    super(label, vscode.TreeItemCollapsibleState.None);
+    this.id = itemId;
+    this.description = description;
+    this.tooltip = tooltip;
+    this.iconPath = new vscode.ThemeIcon(iconId);
+    this.command = { command: commandId, title: label };
+  }
+}
+
 async function computeTokenCounts(uri) {
   const text = await readFileAsText(uri);
   if (text === null) return { tokenCount: 0, rawTokenCount: 0 };
@@ -71,8 +89,17 @@ function buildFileItemTooltip(fileEntry) {
 }
 
 class ContextFileTreeProvider {
+  constructor(getModelLabel, getCompressionLabel) {
+    this._getModelLabel = getModelLabel || null;
+    this._getCompressionLabel = getCompressionLabel || null;
+  }
+
   get onDidChangeTreeData() {
     return onDidChangeTreeDataEmitter.event;
+  }
+
+  refresh() {
+    onDidChangeTreeDataEmitter.fire(undefined);
   }
 
   getTreeItem(element) {
@@ -81,7 +108,35 @@ class ContextFileTreeProvider {
 
   getChildren(element) {
     if (element) return [];
-    return contextFiles.map((fileEntry) => new ContextFileItem(fileEntry));
+    const fileItems = contextFiles.map((fileEntry) => new ContextFileItem(fileEntry));
+    if (!this._getModelLabel) return fileItems;
+    const actionItems = [
+      new ContextPanelActionItem(
+        ACTION_ITEM_COPY_PROMPT_ID,
+        'Copy Prompt',
+        '',
+        COMMAND_ASSEMBLE_PROMPT,
+        'copy',
+        'Assemble all checked files into a formatted prompt and copy it to the clipboard.'
+      ),
+      new ContextPanelActionItem(
+        ACTION_ITEM_MODEL_ID,
+        'Model',
+        this._getModelLabel(),
+        COMMAND_SELECT_MODEL,
+        'list-selection',
+        'The model used for token counting. Click to switch models.'
+      ),
+      new ContextPanelActionItem(
+        ACTION_ITEM_COMPRESSION_ID,
+        'Compression',
+        this._getCompressionLabel(),
+        COMMAND_SET_COMPRESSION,
+        'settings-gear',
+        'How files are compressed before copying. Click to change the compression mode.'
+      ),
+    ];
+    return [...actionItems, ...fileItems];
   }
 }
 

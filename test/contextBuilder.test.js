@@ -19,6 +19,9 @@ const vscodeMock = {
   },
   TreeItemCollapsibleState: { None: 0 },
   TreeItemCheckboxState: { Unchecked: 0, Checked: 1 },
+  ThemeIcon: class {
+    constructor(id) { this.id = id; }
+  },
   MarkdownString: class {
     constructor() { this._value = ''; }
     appendMarkdown(s) { this._value += s; return this; }
@@ -664,5 +667,91 @@ describe('assemblePromptText — with workspace root', () => {
     const result = await assemblePromptText();
     const expectedPath = path.join('src', 'index.js');
     assert.ok(result.includes(`### ${expectedPath}`), `heading should be "${expectedPath}"`);
+  });
+});
+
+describe('ContextFileTreeProvider — with action callbacks', () => {
+  beforeEach(() => {
+    initialize(mockEncoder);
+    clearAllContext();
+    mockReadFileAsText = async () => 'content';
+  });
+
+  it('prepends copy, model, and compression action items when callbacks are provided', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    const items = provider.getChildren();
+    assert.equal(items.length, 3);
+    assert.equal(items[0].label, 'Copy Prompt');
+    assert.equal(items[1].label, 'Model');
+    assert.equal(items[2].label, 'Compression');
+  });
+
+  it('action items appear before file items', async () => {
+    const uri = makeUri('/project/src/index.js');
+    await addFilesToContext([uri]);
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    const items = provider.getChildren();
+    assert.equal(items.length, 4);
+    assert.equal(items[0].label, 'Copy Prompt');
+    assert.equal(items[3].uriString, uri.toString());
+  });
+
+  it('model item description reflects the callback return value', () => {
+    const provider = new ContextFileTreeProvider(() => 'Claude 3.5 Sonnet', () => 'None');
+    const [, modelItem] = provider.getChildren();
+    assert.equal(modelItem.description, 'Claude 3.5 Sonnet');
+  });
+
+  it('compression item description reflects the callback return value', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'Strip Comments');
+    const [, , compressionItem] = provider.getChildren();
+    assert.equal(compressionItem.description, 'Strip Comments');
+  });
+
+  it('action items have no checkboxState', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    const [copyItem, modelItem, compressionItem] = provider.getChildren();
+    assert.equal(copyItem.checkboxState, undefined);
+    assert.equal(modelItem.checkboxState, undefined);
+    assert.equal(compressionItem.checkboxState, undefined);
+  });
+
+  it('copy item fires the assemblePrompt command', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    const [copyItem] = provider.getChildren();
+    assert.equal(copyItem.command.command, 'token-budget-builder.assemblePrompt');
+  });
+
+  it('model item fires the selectModel command', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    const [, modelItem] = provider.getChildren();
+    assert.equal(modelItem.command.command, 'token-budget-builder.selectModel');
+  });
+
+  it('compression item fires the setCompressionMode command', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    const [, , compressionItem] = provider.getChildren();
+    assert.equal(compressionItem.command.command, 'token-budget-builder.setCompressionMode');
+  });
+
+  it('refresh fires onDidChangeTreeData', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    let fired = false;
+    provider.onDidChangeTreeData(() => { fired = true; });
+    provider.refresh();
+    assert.ok(fired, 'refresh should fire onDidChangeTreeData');
+  });
+
+  it('model label is re-evaluated on each getChildren call', () => {
+    let modelName = 'GPT-4o';
+    const provider = new ContextFileTreeProvider(() => modelName, () => 'None');
+    modelName = 'Claude 3.5 Sonnet';
+    const [, modelItem] = provider.getChildren();
+    assert.equal(modelItem.description, 'Claude 3.5 Sonnet');
+  });
+
+  it('getChildren returns empty array for a non-root element regardless of callbacks', () => {
+    const provider = new ContextFileTreeProvider(() => 'GPT-4o', () => 'None');
+    assert.deepEqual(provider.getChildren({ label: 'something' }), []);
   });
 });

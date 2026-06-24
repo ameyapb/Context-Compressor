@@ -35,7 +35,6 @@ const {
   deleteTemplate,
   slugifyTemplateName,
 } = require('./templateManager');
-const { BuildPromptTreeProvider } = require('./buildPromptProvider');
 const { FilterPanelProvider } = require('./filterPanelProvider');
 const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('./logFilterContentProvider');
 const {
@@ -196,8 +195,7 @@ let statusBarItem;
 let debounceTimer;
 let currentModelId;
 let treeView;
-let buildPromptTreeView;
-let buildPromptProvider;
+let contextFileTreeProvider;
 let templateTreeView;
 let promptTemplateTreeProvider;
 let pendingTemplateSession = null;
@@ -237,7 +235,7 @@ function refreshStatusBarFromActiveEditor() {
 
 function refreshContextDisplay() {
   if (!treeView) return;
-  if (buildPromptProvider) buildPromptProvider.refresh();
+  if (contextFileTreeProvider) contextFileTreeProvider.refresh();
   const model = getModelById(currentModelId);
   const total = getTotalIncludedTokens();
   const budgetText = formatBudget(total, model.practicalTokenLimit);
@@ -306,7 +304,10 @@ function activate(context) {
   statusBarItem.command = 'token-budget-builder.countTokens';
   context.subscriptions.push(statusBarItem);
 
-  const contextFileTreeProvider = new ContextFileTreeProvider();
+  contextFileTreeProvider = new ContextFileTreeProvider(
+    () => getModelById(currentModelId).label,
+    () => getCompressionModeLabel()
+  );
   treeView = vscode.window.createTreeView('token-budget-builder-files', {
     treeDataProvider: contextFileTreeProvider,
     showCollapseAll: false,
@@ -314,16 +315,6 @@ function activate(context) {
   });
   treeView.title = 'Context Files';
   context.subscriptions.push(treeView);
-
-  buildPromptProvider = new BuildPromptTreeProvider(
-    () => getModelById(currentModelId).label,
-    () => getCompressionModeLabel()
-  );
-  buildPromptTreeView = vscode.window.createTreeView('token-budget-builder-build', {
-    treeDataProvider: buildPromptProvider,
-    showCollapseAll: false,
-  });
-  context.subscriptions.push(buildPromptTreeView);
 
   promptTemplateTreeProvider = new PromptTemplateTreeProvider();
   promptTemplateTreeProvider.initialize(context.globalState);

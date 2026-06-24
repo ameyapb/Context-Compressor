@@ -1,7 +1,34 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const Module = require('module');
+
+const vscodeMock = {
+  EventEmitter: class {
+    constructor() { this._listeners = []; }
+    get event() { return (listener) => { this._listeners.push(listener); }; }
+    fire(data) { for (const listener of this._listeners) listener(data); }
+  },
+  TreeItem: class {
+    constructor(label, collapsibleState) {
+      this.label = label;
+      this.collapsibleState = collapsibleState;
+    }
+  },
+  TreeItemCollapsibleState: { None: 0, Expanded: 2 },
+  ThemeIcon: class { constructor(id) { this.id = id; } },
+};
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === 'vscode') return vscodeMock;
+  return originalLoad.apply(this, arguments);
+};
+
+delete require.cache[require.resolve('../src/filterPanelProvider')];
 const { buildFilterState } = require('../src/filterPanelProvider');
+
+Module._load = originalLoad;
 
 describe('buildFilterState — no filter', () => {
   it('returns hasFilter false for null', () => {
