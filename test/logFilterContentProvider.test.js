@@ -33,15 +33,15 @@ delete require.cache[require.resolve('../src/logFilterContentProvider')];
 const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('../src/logFilterContentProvider');
 
 describe('LOG_FILTER_SCHEME constant', () => {
-  it('equals "log-filter"', () => {
-    assert.equal(LOG_FILTER_SCHEME, 'log-filter');
+  it('equals "line-filter"', () => {
+    assert.equal(LOG_FILTER_SCHEME, 'line-filter');
   });
 });
 
 describe('LogFilterContentProvider.createUri', () => {
-  it('returns an object whose string form starts with the log-filter scheme', () => {
+  it('returns an object whose string form starts with the line-filter scheme', () => {
     const uri = LogFilterContentProvider.createUri(0);
-    assert.ok(uri.toString().startsWith('log-filter://'));
+    assert.ok(uri.toString().startsWith('line-filter://'));
   });
 
   it('embeds the counter value in the URI string', () => {
@@ -98,32 +98,6 @@ describe('LogFilterContentProvider — setContent and provideTextDocumentContent
     const uri = LogFilterContentProvider.createUri(0);
     provider.setContent(uri, '');
     assert.equal(provider.provideTextDocumentContent(uri), '');
-  });
-});
-
-describe('LogFilterContentProvider — disposeUri', () => {
-  it('returns empty string after the URI is disposed', () => {
-    const provider = new LogFilterContentProvider();
-    const uri = LogFilterContentProvider.createUri(0);
-    provider.setContent(uri, 'data');
-    provider.disposeUri(uri);
-    assert.equal(provider.provideTextDocumentContent(uri), '');
-  });
-
-  it('does not throw when disposing a URI that was never set', () => {
-    const provider = new LogFilterContentProvider();
-    const uri = LogFilterContentProvider.createUri(99);
-    assert.doesNotThrow(() => provider.disposeUri(uri));
-  });
-
-  it('disposing one URI does not affect content at another URI', () => {
-    const provider = new LogFilterContentProvider();
-    const uriA = LogFilterContentProvider.createUri(1);
-    const uriB = LogFilterContentProvider.createUri(2);
-    provider.setContent(uriA, 'a');
-    provider.setContent(uriB, 'b');
-    provider.disposeUri(uriA);
-    assert.equal(provider.provideTextDocumentContent(uriB), 'b');
   });
 });
 

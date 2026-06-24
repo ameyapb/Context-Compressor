@@ -78,7 +78,7 @@
         },
         {
           "id": "token-budget-builder-filter",
-          "name": "Log Filter"
+          "name": "Line Filter"
         }
       ]
     },

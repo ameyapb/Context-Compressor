@@ -2,7 +2,7 @@
 
 const vscode = require('vscode');
 
-const LOG_FILTER_SCHEME = 'log-filter';
+const LOG_FILTER_SCHEME = 'line-filter';
 
 class LogFilterContentProvider {
   constructor() {
@@ -22,10 +22,6 @@ class LogFilterContentProvider {
 
   provideTextDocumentContent(uri) {
     return this._contentMap.get(uri.toString()) ?? '';
-  }
-
-  disposeUri(uri) {
-    this._contentMap.delete(uri.toString());
   }
 }
 

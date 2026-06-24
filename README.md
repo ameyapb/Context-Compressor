@@ -26,6 +26,20 @@ To count tokens in a file or folder without adding it to context, right-click in
 | Collapse Whitespace | Blank lines and trailing spaces |
 | Signatures Only | Function and class bodies; keeps signatures and docstrings |
 
+## Line Filter
+
+Line Filter lets you narrow down any text file to just the lines you care about, which is useful for trimming log output or large generated files before adding them to context.
+
+**From the sidebar** (Line Filter panel): click "Keep matching lines..." or "Remove matching lines..." to enter a search term. Select text first and click "From selection" to filter using the selected text directly.
+
+**From the editor** right-click menu: "Keep Matching Lines" and "Remove Matching Lines" are available in any open file.
+
+Results open in a read-only document beside your editor. You can filter a result again to chain multiple filters, and the Filter Summary panel shows the full chain along with match counts.
+
+**Input format:** plain text is matched case-insensitively as a literal string. Wrap in `/slashes/` for regex, optionally with flags: `/\bERROR\b/i`.
+
+**Context lines:** click "Context: none" in the panel to include N lines above and below each match.
+
 ## Supported Models
 
 | Model | Encoding | Context window |

@@ -22,7 +22,7 @@ describe('buildFilterState — no filter', () => {
 });
 
 describe('buildFilterState — single-pattern header', () => {
-  const singleHeader = '# [log-filter] pattern: "error" | source: server.log (23 of 4521 lines)';
+  const singleHeader = '# [line-filter] pattern: "error" | source: server.log (23 of 4521 lines)';
 
   it('returns hasFilter true', () => {
     assert.equal(buildFilterState(singleHeader).hasFilter, true);
@@ -47,7 +47,7 @@ describe('buildFilterState — single-pattern header', () => {
 });
 
 describe('buildFilterState — chained header', () => {
-  const chainHeader = '# [log-filter] chain: "error" > "auth" | source: server.log (5 of 4521 lines)';
+  const chainHeader = '# [line-filter] chain: "error" > "auth" | source: server.log (5 of 4521 lines)';
 
   it('returns hasFilter true', () => {
     assert.equal(buildFilterState(chainHeader).hasFilter, true);
@@ -69,12 +69,12 @@ describe('buildFilterState — chained header', () => {
 
 describe('buildFilterState — malformed headers', () => {
   it('returns hasFilter false when pipe marker is missing', () => {
-    const header = '# [log-filter] pattern: "error"';
+    const header = '# [line-filter] pattern: "error"';
     assert.deepEqual(buildFilterState(header), { hasFilter: false });
   });
 
   it('returns hasFilter false when source segment is malformed', () => {
-    const header = '# [log-filter] pattern: "error" | source: server.log (no numbers here)';
+    const header = '# [line-filter] pattern: "error" | source: server.log (no numbers here)';
     assert.deepEqual(buildFilterState(header), { hasFilter: false });
   });
 });

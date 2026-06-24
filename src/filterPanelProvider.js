@@ -72,7 +72,7 @@ class FilterPanelProvider {
   getChildren(element) {
     if (!element) {
       return [
-        new FilterGroupItem(GROUP_ID_ACTIVE_FILTER, 'Active Filter', 'filter'),
+        new FilterGroupItem(GROUP_ID_ACTIVE_FILTER, 'Filter Summary', 'filter'),
         new FilterGroupItem(GROUP_ID_ACTIONS, 'Actions', 'zap'),
       ];
     }
@@ -90,15 +90,11 @@ class FilterPanelProvider {
 
   _buildActiveFilterItems() {
     const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      return [new FilterInfoItem('No active editor', '', 'circle-slash')];
-    }
-
-    const firstLine = editor.document.lineAt(0).text;
+    const firstLine = editor ? editor.document.lineAt(0).text : null;
     const state = buildFilterState(firstLine);
 
     if (!state.hasFilter) {
-      return [new FilterInfoItem('No filtered document active', '', 'circle-slash')];
+      return [new FilterInfoItem('No filter result open', '', 'circle-slash')];
     }
 
     const items = [];

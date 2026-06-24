@@ -1,6 +1,6 @@
 'use strict';
 
-const FILTER_HEADER_TAG = '[log-filter]';
+const FILTER_HEADER_TAG = '[line-filter]';
 const CONTEXT_SEPARATOR = '---';
 
 function filterLines(text, pattern, options) {
