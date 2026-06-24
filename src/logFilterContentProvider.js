@@ -9,6 +9,7 @@ class LogFilterContentProvider {
     this._onDidChange = new vscode.EventEmitter();
     this.onDidChange = this._onDidChange.event;
     this._contentMap = new Map();
+    this._sourceUriMap = new Map();
   }
 
   static createUri(counter) {
@@ -18,6 +19,19 @@ class LogFilterContentProvider {
   setContent(uri, content) {
     this._contentMap.set(uri.toString(), content);
     this._onDidChange.fire(uri);
+  }
+
+  setSourceUri(resultUri, sourceUri) {
+    this._sourceUriMap.set(resultUri.toString(), sourceUri);
+  }
+
+  getSourceUri(resultUri) {
+    return this._sourceUriMap.get(resultUri.toString()) ?? null;
+  }
+
+  clearAll() {
+    this._contentMap.clear();
+    this._sourceUriMap.clear();
   }
 
   provideTextDocumentContent(uri) {

@@ -101,6 +101,92 @@ describe('LogFilterContentProvider — setContent and provideTextDocumentContent
   });
 });
 
+describe('LogFilterContentProvider — setSourceUri and getSourceUri', () => {
+  const makeSourceUri = (path) => ({ toString: () => `file://${path}`, fsPath: path });
+
+  it('returns null for an unknown result URI', () => {
+    const provider = new LogFilterContentProvider();
+    const resultUri = LogFilterContentProvider.createUri(0);
+    assert.equal(provider.getSourceUri(resultUri), null);
+  });
+
+  it('returns the stored URI after setSourceUri is called', () => {
+    const provider = new LogFilterContentProvider();
+    const resultUri = LogFilterContentProvider.createUri(0);
+    const sourceUri = makeSourceUri('/logs/server.log');
+    provider.setSourceUri(resultUri, sourceUri);
+    assert.equal(provider.getSourceUri(resultUri), sourceUri);
+  });
+
+  it('returns the most recent URI when setSourceUri is called twice for the same result URI', () => {
+    const provider = new LogFilterContentProvider();
+    const resultUri = LogFilterContentProvider.createUri(0);
+    const firstSource = makeSourceUri('/logs/a.log');
+    const secondSource = makeSourceUri('/logs/b.log');
+    provider.setSourceUri(resultUri, firstSource);
+    provider.setSourceUri(resultUri, secondSource);
+    assert.equal(provider.getSourceUri(resultUri), secondSource);
+  });
+
+  it('isolates source URIs between different result URIs', () => {
+    const provider = new LogFilterContentProvider();
+    const uriA = LogFilterContentProvider.createUri(1);
+    const uriB = LogFilterContentProvider.createUri(2);
+    const sourceA = makeSourceUri('/logs/a.log');
+    const sourceB = makeSourceUri('/logs/b.log');
+    provider.setSourceUri(uriA, sourceA);
+    provider.setSourceUri(uriB, sourceB);
+    assert.equal(provider.getSourceUri(uriA), sourceA);
+    assert.equal(provider.getSourceUri(uriB), sourceB);
+  });
+
+  it('source map and content map are independent', () => {
+    const provider = new LogFilterContentProvider();
+    const resultUri = LogFilterContentProvider.createUri(0);
+    const sourceUri = makeSourceUri('/logs/server.log');
+    provider.setSourceUri(resultUri, sourceUri);
+    assert.equal(provider.provideTextDocumentContent(resultUri), '');
+    provider.setContent(resultUri, 'some content');
+    assert.equal(provider.getSourceUri(resultUri), sourceUri);
+  });
+});
+
+describe('LogFilterContentProvider — clearAll', () => {
+  const makeSourceUri = (path) => ({ toString: () => `file://${path}`, fsPath: path });
+
+  it('does not throw when called on an empty provider', () => {
+    const provider = new LogFilterContentProvider();
+    assert.doesNotThrow(() => provider.clearAll());
+  });
+
+  it('makes provideTextDocumentContent return empty string after content was set', () => {
+    const provider = new LogFilterContentProvider();
+    const uri = LogFilterContentProvider.createUri(0);
+    provider.setContent(uri, 'some data');
+    provider.clearAll();
+    assert.equal(provider.provideTextDocumentContent(uri), '');
+  });
+
+  it('makes getSourceUri return null after a source URI was set', () => {
+    const provider = new LogFilterContentProvider();
+    const resultUri = LogFilterContentProvider.createUri(0);
+    provider.setSourceUri(resultUri, makeSourceUri('/logs/server.log'));
+    provider.clearAll();
+    assert.equal(provider.getSourceUri(resultUri), null);
+  });
+
+  it('clears content for all URIs not just the last one set', () => {
+    const provider = new LogFilterContentProvider();
+    const uriA = LogFilterContentProvider.createUri(1);
+    const uriB = LogFilterContentProvider.createUri(2);
+    provider.setContent(uriA, 'a');
+    provider.setContent(uriB, 'b');
+    provider.clearAll();
+    assert.equal(provider.provideTextDocumentContent(uriA), '');
+    assert.equal(provider.provideTextDocumentContent(uriB), '');
+  });
+});
+
 describe('LogFilterContentProvider — onDidChange event', () => {
   it('fires after setContent is called', () => {
     const provider = new LogFilterContentProvider();

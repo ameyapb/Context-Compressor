@@ -26,9 +26,116 @@ Module._load = function (request, parent, isMain) {
 };
 
 delete require.cache[require.resolve('../src/filterPanelProvider')];
-const { buildFilterState } = require('../src/filterPanelProvider');
+const {
+  buildFilterState,
+  FilterSourceItem, CONTEXT_VALUE_FILTER_SOURCE,
+  FilterHistoryGroupItem, CONTEXT_VALUE_FILTER_HISTORY_GROUP,
+} = require('../src/filterPanelProvider');
 
 Module._load = originalLoad;
+
+describe('FilterSourceItem', () => {
+  const makeSourceUri = (fsPath) => ({
+    toString: () => `file://${fsPath}`,
+    fsPath,
+  });
+
+  it('sets label to the provided basename', () => {
+    const item = new FilterSourceItem('server.log', null);
+    assert.equal(item.label, 'server.log');
+  });
+
+  it('sets contextValue to CONTEXT_VALUE_FILTER_SOURCE', () => {
+    const item = new FilterSourceItem('server.log', null);
+    assert.equal(item.contextValue, CONTEXT_VALUE_FILTER_SOURCE);
+  });
+
+  it('has no command property when sourceUri is null', () => {
+    const item = new FilterSourceItem('server.log', null);
+    assert.equal(item.command, undefined);
+  });
+
+  it('has command.command set to vscode.open when sourceUri is provided', () => {
+    const uri = makeSourceUri('/logs/server.log');
+    const item = new FilterSourceItem('server.log', uri);
+    assert.equal(item.command.command, 'vscode.open');
+  });
+
+  it('passes the sourceUri as the first command argument', () => {
+    const uri = makeSourceUri('/logs/server.log');
+    const item = new FilterSourceItem('server.log', uri);
+    assert.equal(item.command.arguments[0], uri);
+  });
+
+  it('sets tooltip to sourceUri.fsPath when sourceUri is provided', () => {
+    const uri = makeSourceUri('/logs/server.log');
+    const item = new FilterSourceItem('server.log', uri);
+    assert.equal(item.tooltip, '/logs/server.log');
+  });
+});
+
+describe('FilterHistoryGroupItem', () => {
+  const makeUri = (str) => ({ toString: () => str });
+  const makeSourceUri = (fsPath) => ({ toString: () => `file://${fsPath}`, fsPath });
+
+  const makeEntry = (overrides = {}) => ({
+    uri: makeUri('line-filter://result/filter-1.log'),
+    source: 'server.log',
+    chain: ['ERROR'],
+    matched: 42,
+    total: 1000,
+    sourceUri: makeSourceUri('/logs/server.log'),
+    ...overrides,
+  });
+
+  it('sets label to chain patterns joined with " > "', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ chain: ['ERROR', 'auth'] }));
+    assert.equal(item.label, 'ERROR > auth');
+  });
+
+  it('sets label to the single pattern when chain has one entry', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ chain: ['ERROR'] }));
+    assert.equal(item.label, 'ERROR');
+  });
+
+  it('sets description to matched count with "matched" suffix', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ matched: 42 }));
+    assert.equal(item.description, '42 matched');
+  });
+
+  it('sets contextValue to CONTEXT_VALUE_FILTER_HISTORY_GROUP', () => {
+    const item = new FilterHistoryGroupItem(makeEntry());
+    assert.equal(item.contextValue, CONTEXT_VALUE_FILTER_HISTORY_GROUP);
+  });
+
+  it('stores the entry object on the item', () => {
+    const entry = makeEntry();
+    const item = new FilterHistoryGroupItem(entry);
+    assert.equal(item.entry, entry);
+  });
+
+  it('sets command.command to vscode.open', () => {
+    const item = new FilterHistoryGroupItem(makeEntry());
+    assert.equal(item.command.command, 'vscode.open');
+  });
+
+  it('passes the entry uri as the first command argument', () => {
+    const entry = makeEntry();
+    const item = new FilterHistoryGroupItem(entry);
+    assert.equal(item.command.arguments[0], entry.uri);
+  });
+
+  it('tooltip contains the source filename', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ source: 'server.log' }));
+    assert.ok(item.tooltip.includes('server.log'));
+  });
+
+  it('tooltip contains the matched count', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ matched: 42, total: 1000 }));
+    assert.ok(item.tooltip.includes('42'));
+    assert.ok(item.tooltip.includes('1,000'));
+  });
+});
 
 describe('buildFilterState — no filter', () => {
   it('returns hasFilter false for null', () => {

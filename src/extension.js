@@ -332,16 +332,34 @@ function activate(context) {
   );
   let filterResultCounter = 0;
 
+  const filterHistory = [];
+  const openFilterUris = new Set();
+
   function getContextLines() {
     return context.workspaceState.get(CONTEXT_LINES_STORAGE_KEY, 0);
   }
 
-  const filterPanelProvider = new FilterPanelProvider(getContextLines);
+  const filterPanelProvider = new FilterPanelProvider(
+    getContextLines,
+    () => filterHistory
+  );
   const filterTreeView = vscode.window.createTreeView('token-budget-builder-filter', {
     treeDataProvider: filterPanelProvider,
     showCollapseAll: false,
   });
   context.subscriptions.push(filterTreeView);
+
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument((doc) => {
+      if (doc.uri.scheme !== LOG_FILTER_SCHEME) return;
+      openFilterUris.delete(doc.uri.toString());
+      if (openFilterUris.size === 0) {
+        filterHistory.length = 0;
+        logFilterContentProvider.clearAll();
+        filterPanelProvider.refresh();
+      }
+    })
+  );
 
   function refreshTemplateDisplay() {
     promptTemplateTreeProvider.refresh();
@@ -439,6 +457,10 @@ function activate(context) {
       existingChain = [];
     }
 
+    const resolvedSourceUri = parsed
+      ? (logFilterContentProvider.getSourceUri(editor.document.uri) ?? editor.document.uri)
+      : editor.document.uri;
+
     let result;
     try {
       result = filterLines(contentText, resolvedPattern.pattern, {
@@ -457,6 +479,16 @@ function activate(context) {
     const content = [header, ...result.lines].join('\n');
     const resultUri = LogFilterContentProvider.createUri(filterResultCounter++);
     logFilterContentProvider.setContent(resultUri, content);
+    logFilterContentProvider.setSourceUri(resultUri, resolvedSourceUri);
+    filterHistory.unshift({
+      uri: resultUri,
+      source: sourceForHeader,
+      chain: newChain,
+      matched: result.matchedCount,
+      total: baseTotal,
+      sourceUri: resolvedSourceUri,
+    });
+    openFilterUris.add(resultUri.toString());
     const doc = await vscode.workspace.openTextDocument(resultUri);
     await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
     filterPanelProvider.refresh();
