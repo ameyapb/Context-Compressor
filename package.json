@@ -2,7 +2,7 @@
   "name": "token-budget-builder",
   "displayName": "Token Budget Builder",
   "description": "Build, compress, and copy multi-file prompts with per-model token budgets, import-aware file suggestions, saved presets, and reusable prompt templates; for Claude, GPT-4, Gemini, and more",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "Uchiha-Labs",
   "license": "MIT",
   "repository": {
