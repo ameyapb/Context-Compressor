@@ -37,6 +37,7 @@ const {
 } = require('./templateManager');
 const { FilterPanelProvider } = require('./filterPanelProvider');
 const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('./logFilterContentProvider');
+const { openSqliteViewer } = require('./sqliteViewer');
 const {
   filterLines,
   FILTER_HEADER_TAG,
@@ -1220,6 +1221,14 @@ function activate(context) {
     }
   );
   context.subscriptions.push(saveFilterResultCommand);
+
+  const openSqliteViewerCommand = vscode.commands.registerCommand(
+    'token-budget-builder.openSqliteViewer',
+    async (fileUri) => {
+      await openSqliteViewer(context, fileUri);
+    }
+  );
+  context.subscriptions.push(openSqliteViewerCommand);
 
   const clearFilterHistoryCommand = vscode.commands.registerCommand(
     'token-budget-builder.clearFilterHistory',

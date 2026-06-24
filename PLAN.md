@@ -1,329 +1,366 @@
-# Line Filter UX Improvements
+# SQLite Viewer - Implementation Plan
 
 ## Context
 
-The Line Filter sidebar panel (powered by `FilterPanelProvider`) currently has several friction points: Keep and Remove look identical at a glance, the history gives no visual cue about which result is currently open, match stats require expanding items, patterns cannot be reused from history, and the empty state gives no guidance. This plan addresses all eleven improvements identified in the brainstorm, grouped by implementation order.
+This adds a lightweight read-only SQLite table browser to the extension. The target user is non-technical and should never need to know SQL exists. A user right-clicks a `.sqlite` or `.db` file in the Explorer, opens the viewer, selects a table, and browses/searches/filters rows with UI controls only.
+
+## Key architecture decision: sql.js runs on the extension host, not in the webview
+
+The webview is a **dumb display layer**. All file I/O and SQL execution happen on the extension host (Node.js). Results are pushed to the webview via `postMessage`. User actions (filter changes, page changes, table selection) come back as `postMessage` events; the host runs the corresponding query and pushes fresh data.
+
+This avoids:
+- CSP `wasm-unsafe-eval` requirement in the webview
+- File system access from the webview
+- `localResourceRoots` wiring for the WASM binary
+- Any security surface from running user-provided SQLite data in the webview JS context
+
+The CSP stays identical to the existing template preview webview: `default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';`
 
 ---
 
-## Items in Priority Order
+## New modules
 
-### G - Visual distinction between Keep and Remove icons
+### `src/sqliteReader.js` — pure Node.js, no VS Code dependency
 
-**Files:** `src/filterPanelProvider.js` line 169-184
+Wraps `sql.js`. Accepts file bytes as a `Uint8Array` (not a path) so it has no filesystem dependency and is trivially testable with in-memory DBs.
 
-Change the Remove action's icon from `'filter-filled'` to `'remove'` (a minus-circle). Keep uses `'filter'`, Remove uses `'remove'`. These two icons communicate inclusion vs exclusion without reading the label.
-
+**Initialization:**
 ```js
-// Keep (no change):
-new FilterActionItem('Keep matching lines...', COMMAND_FILTER_LINES, 'filter', ...)
-// Remove (change icon):
-new FilterActionItem('Remove matching lines...', COMMAND_FILTER_LINES_INVERSE, 'remove', ...)
-```
+const initSqlJs = require('sql.js');
+const path = require('path');
+let _SQL = null;
 
----
-
-### H - Inline match rate percentage in history label
-
-**Files:** `src/filterPanelProvider.js` line 64
-
-In `FilterHistoryGroupItem` constructor, change description to include percentage:
-
-```js
-const pct = entry.total > 0 ? Math.round((entry.matched / entry.total) * 100) : 0;
-this.description = `${entry.matched.toLocaleString()} matched (${pct}%)`;
-```
-
-The `total` field is already on every history entry. No data-structure changes needed.
-
----
-
-### B - Guided empty state
-
-**Files:** `src/filterPanelProvider.js` line 124-126
-
-Replace the bare "No filter results yet" item with one that directs the user to act:
-
-```js
-return [new FilterInfoItem('Open a file and use an action below', '', 'info')];
-```
-
----
-
-### A - Active item indicator in history
-
-**Files:** `src/filterPanelProvider.js`, `src/extension.js` line 342-345
-
-`FilterPanelProvider` needs to know the URI of the currently active editor so it can highlight the matching history entry.
-
-1. Add a third constructor callback: `getActiveEditorUri`.
-2. In `extension.js`, pass `() => vscode.window.activeTextEditor?.document?.uri` as the third argument.
-3. In `_buildHistoryItems()`, compare each `entry.uri.toString()` against `this._getActiveEditorUri()?.toString()`. If they match, set `$(circle-filled)` as the icon instead of the default `$(filter)`.
-
-```js
-// filterPanelProvider.js - FilterHistoryGroupItem will accept an optional isActive flag
-class FilterHistoryGroupItem extends vscode.TreeItem {
-  constructor(entry, isActive) {
-    // ...existing code...
-    this.iconPath = new vscode.ThemeIcon(isActive ? 'circle-filled' : 'filter');
-  }
-}
-
-// _buildHistoryItems in FilterPanelProvider:
-_buildHistoryItems() {
-  const history = this._getFilterHistory();
-  if (history.length === 0) { ... }
-  const activeUriStr = this._getActiveEditorUri()?.toString();
-  return history.map(entry =>
-    new FilterHistoryGroupItem(entry, entry.uri.toString() === activeUriStr)
-  );
-}
-```
-
-No change to `onDidChangeActiveTextEditor` listener needed - it already calls `filterPanelProvider.refresh()`.
-
----
-
-### C - Action labels adapt when active editor is a filter result
-
-**Files:** `src/filterPanelProvider.js`, `src/extension.js`
-
-When the active editor is a filter result (URI scheme is `line-filter`), the Keep and Remove labels should read "in result..." to clarify the user is narrowing an existing chain.
-
-1. Add a fourth constructor callback to `FilterPanelProvider`: `getIsActiveEditorFilterResult`.
-2. In `extension.js`, pass `() => vscode.window.activeTextEditor?.document?.uri?.scheme === LOG_FILTER_SCHEME`.
-3. In `_buildActionItems()`:
-
-```js
-const onResult = this._getIsActiveEditorFilterResult();
-const keepLabel = onResult ? 'Keep matching lines in result...' : 'Keep matching lines...';
-const removeLabel = onResult ? 'Remove matching lines in result...' : 'Remove matching lines...';
-```
-
----
-
-### F - Persist recent patterns across sessions
-
-**Files:** `src/extension.js`
-
-After every successful manual filter (not "From selection"), prepend the raw user input to a `workspaceState` list capped at 5 unique entries.
-
-Constants to add at the top of `extension.js`:
-```js
-const RECENT_PATTERNS_STORAGE_KEY = 'filter-recent-patterns';
-const RECENT_PATTERNS_MAX = 5;
-```
-
-At the end of `runFilterCommand`, after the result is opened, add (only when `preSuppliedPattern === null`, meaning it came from manual input):
-
-```js
-if (preSuppliedPattern === null) {
-  const existing = context.workspaceState.get(RECENT_PATTERNS_STORAGE_KEY, []);
-  const updated = [rawInput, ...existing.filter(p => p !== rawInput)].slice(0, RECENT_PATTERNS_MAX);
-  await context.workspaceState.update(RECENT_PATTERNS_STORAGE_KEY, updated);
-}
-```
-
-This requires hoisting `rawInput` to a variable available after the early-return guards.
-
----
-
-### E - Pattern input with recent suggestions (quick pick)
-
-**Files:** `src/extension.js` - `runFilterCommand` lines 431-439
-
-Replace `vscode.window.showInputBox` with `vscode.window.createQuickPick` so previously-used patterns appear as selectable items. Users can still type freely.
-
-```js
-const recentPatterns = context.workspaceState.get(RECENT_PATTERNS_STORAGE_KEY, []);
-const qp = vscode.window.createQuickPick();
-qp.title = invert ? 'Remove lines containing:' : 'Keep lines containing:';
-qp.placeholder = invert ? 'debug' : 'error';
-qp.items = recentPatterns.map(p => ({ label: p, description: 'recent' }));
-
-const rawInput = await new Promise(resolve => {
-  qp.onDidAccept(() => {
-    const value = qp.selectedItems.length > 0 ? qp.selectedItems[0].label : qp.value;
-    resolve(value || null);
-    qp.hide();
-  });
-  qp.onDidHide(() => resolve(null));
-  qp.show();
-});
-if (!rawInput || !rawInput.trim()) return;
-resolvedPattern = resolveFilterPattern(rawInput.trim());
-```
-
-This replaces the existing `showInputBox` block. The `rawInput` variable is then used in item F's persistence logic.
-
----
-
-### D - Per-step match counts stored in history entries
-
-**Files:** `src/extension.js` - `runFilterCommand` line 447-490
-
-To show how each filter narrowed the result, store `chainStepCounts: number[]` alongside each history entry. Each index aligns with `chain[i]`.
-
-In `runFilterCommand`, after determining `existingChain`, also look up the previous step counts:
-
-```js
-const sourceHistoryEntry = filterHistory.find(
-  h => h.uri.toString() === editor.document.uri.toString()
-);
-const existingStepCounts = sourceHistoryEntry?.chainStepCounts ?? [];
-```
-
-Then in the `filterHistory.unshift(...)` call, add:
-
-```js
-chainStepCounts: [...existingStepCounts, result.matchedCount],
-```
-
----
-
-### K - Chain funnel view in expanded history items
-
-**Files:** `src/filterPanelProvider.js` - `FilterHistoryGroupItem` constructor and `_buildHistoryGroupChildren`
-
-**Part 1 - Group item label** uses `chainStepCounts` to annotate each step:
-
-```js
-const chainLabel = entry.chain.map((pattern, i) => {
-  const count = entry.chainStepCounts?.[i];
-  return count !== undefined ? `${pattern} (${count.toLocaleString()})` : pattern;
-}).join(' > ');
-super(chainLabel, vscode.TreeItemCollapsibleState.Collapsed);
-```
-
-**Part 2 - Expanded children** replace the generic step info items with per-step funnel rows:
-
-```js
-_buildHistoryGroupChildren(entry) {
-  const items = [];
-  items.push(new FilterSourceItem(entry.source, entry.sourceUri));
-  entry.chain.forEach((pattern, index) => {
-    const stepCount = entry.chainStepCounts?.[index];
-    const denominator = index === 0
-      ? entry.total
-      : entry.chainStepCounts?.[index - 1];
-    const countStr = (stepCount !== undefined && denominator !== undefined)
-      ? `${stepCount.toLocaleString()} of ${denominator.toLocaleString()}`
-      : `step ${index + 1} of ${entry.chain.length}`;
-    items.push(new FilterInfoItem(`"${pattern}"`, countStr, 'search'));
-  });
-  return items;
-}
-```
-
-This removes the redundant bottom "matched of total" item since the last step row shows the final count.
-
----
-
-### I - Save filter result to file
-
-**Files:** `src/filterPanelProvider.js`, `src/extension.js`, `package.json`
-
-**New command** `token-budget-builder.saveFilterResult` in `extension.js`:
-
-```js
-const saveFilterResultCommand = vscode.commands.registerCommand(
-  'token-budget-builder.saveFilterResult',
-  async () => {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.uri.scheme !== LOG_FILTER_SCHEME) {
-      vscode.window.showInformationMessage('Open a filter result tab first.');
-      return;
-    }
-    const saveUri = await vscode.window.showSaveDialog({
-      defaultUri: vscode.Uri.file('filter-result.log'),
-      filters: { 'Log files': ['log', 'txt'], 'All files': ['*'] },
+async function ensureSqlInitialized() {
+  if (!_SQL) {
+    _SQL = await initSqlJs({
+      locateFile: (file) => path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file)
     });
-    if (!saveUri) return;
-    const content = editor.document.getText();
-    await vscode.workspace.fs.writeFile(saveUri, Buffer.from(content, 'utf8'));
-    vscode.window.showInformationMessage(`Saved to ${path.basename(saveUri.fsPath)}`);
   }
-);
-context.subscriptions.push(saveFilterResultCommand);
+  return _SQL;
+}
 ```
 
-**Panel action item** in `_buildActionItems()` (using the existing `getIsActiveEditorFilterResult` callback from item C):
+**Exports:**
+```js
+openDatabase(fileBytes: Uint8Array) → Promise<db>
+listTables(db) → [{ name: string, rowCount: number }]
+getTableSchema(db, tableName) → [{ name: string, type: string, notnull: boolean, pk: boolean }]
+getRows(db, tableName, query) → { rows: any[][], totalRows: number }
+closeDatabase(db) → void
+```
+
+**`query` shape for `getRows`:**
+```js
+{
+  search: string,                              // global substring search across all non-BLOB columns
+  columnFilters: [{ column, op, value }],      // op: 'eq' | 'gt' | 'lt' | 'contains'
+  sort: { column: string, dir: 'asc'|'desc' } | null,
+  page: number,                                // 0-indexed
+  pageSize: number,                            // always 50
+}
+```
+
+**SQL safety rules (strictly enforced):**
+- `tableName` is validated against a whitelist derived from `listTables` before any use. Unrecognized name throws.
+- Column names in `columnFilters` and `sort` are validated against `getTableSchema` output. Unrecognized name throws.
+- All user-supplied filter **values** go through `?` prepared statement parameters — never interpolated.
+- Column/table names, after whitelist validation, are interpolated as double-quoted SQL identifiers: `"${name}"`. This handles names with spaces, reserved words, and mixed case.
+
+**Global search SQL pattern:**
+```sql
+(CAST("col1" AS TEXT) LIKE ? OR CAST("col2" AS TEXT) LIKE ? OR ...)
+```
+Only non-BLOB columns are included. BLOB columns cannot be searched.
+
+**Special value representation:**
+- SQL `NULL` → JS `null` in returned rows
+- BLOB values → `{ __type: 'blob', size: N }` object; the raw bytes are not transmitted to the webview
+
+**Validation step after `openDatabase`:**
+Run `SELECT name FROM sqlite_master LIMIT 1` immediately. If it throws, the file is not a valid SQLite database; re-throw a typed error so `sqliteViewer.js` can show a clean error message and close the panel.
+
+**Row count for large tables:**
+`listTables` runs `SELECT COUNT(*) FROM "tableName"` per table. For DBs with many tables this could be slow, so the function accepts an optional `fastMode: true` flag that returns `rowCount: null` for all tables; the caller then fires a lazy count pass.
+
+---
+
+### `src/sqliteViewer.js` — VS Code-dependent, owns the webview panel
+
+**Single export:**
+```js
+openSqliteViewer(context: vscode.ExtensionContext, fileUri: vscode.Uri) → Promise<void>
+```
+
+**Panel deduplication:**
+Maintains a module-level `Map<string, vscode.WebviewPanel>` keyed on `fileUri.fsPath`. If the panel for that path already exists, reveals it and returns early. Removes the entry from the map when the panel is disposed.
+
+**Open flow:**
+1. Read file bytes: `vscode.workspace.fs.readFile(fileUri)` → `Uint8Array`
+2. Call `openDatabase(fileBytes)` — on error, call `vscode.window.showErrorMessage('Could not open <filename>. The file is not a valid SQLite database.')` and return
+3. Call `listTables(db)` (fast mode; counts filled asynchronously)
+4. Default table = table with highest `rowCount` (or first if counts are null); call `getTableSchema` + `getRows` for it
+5. Create webview panel: `vscode.window.createWebviewPanel('sqliteViewer', fileName, vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [] })`
+6. Set `panel.webview.html = buildSqliteViewerHtml(nonce, fileName, tables, defaultSchema, firstPageRows, firstPageTotal)`
+7. Register `panel.webview.onDidReceiveMessage` handler (see message protocol below)
+8. Register `panel.onDidDispose` to call `closeDatabase(db)` and remove panel from dedup map
+
+**Message handler (extension host side):**
+```
+'query'       → getRows(db, ...) → postMessage({ type: 'tableData', ... })
+'selectTable' → getTableSchema + getRows → postMessage({ type: 'tableData', ... })
+'copyHex'     → vscode.env.clipboard.writeText(hexString)
+```
+
+**Async row count backfill:**
+After posting the `init` message, iterate tables with null counts, run `COUNT(*)` for each, and post `{ type: 'rowCounts', counts: { tableName: number } }` messages so the sidebar badges update progressively.
+
+---
+
+## Webview HTML/JS — `buildSqliteViewerHtml` in `sqliteViewer.js`
+
+All HTML, CSS, and JS are inlined in the returned string, exactly like `buildTemplatePreviewHtml` in `extension.js:114`.
+
+### Layout
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  file.sqlite                                                 │
+├────────────────┬─────────────────────────────────────────────┤
+│ Tables         │  [Search all columns...              ] [×]  │
+│                │                                             │
+│ > users   84   │  name: alice [×]   age > 20 [×]   [× all] │
+│   orders  230  │                                             │
+│   products 12  │  name  TEXT ↑  │  age  INT  │  email  TEXT │
+│                │  ─────────────   ──────────   ────────────  │
+│                │  Alice          │ 28          │ alice@e...  │
+│                │  Bob            │ 34          │ bob@ex...   │
+│                │                                             │
+│                │  Rows 1–50 of 84          [< Prev] [Next >] │
+└────────────────┴─────────────────────────────────────────────┘
+  ┌── Detail drawer (slides up on row click) ─────────────────┐
+  │  name     Alice                                            │
+  │  age      28                                               │
+  │  email    alice@example.com                                │
+  │  notes    [binary data · 2.1 KB]              [Copy hex]  │
+  │                                    [Copy row as JSON] [×] │
+  └────────────────────────────────────────────────────────────┘
+```
+
+### CSS token system — VS Code variables only
+
+| Role | Variable |
+|---|---|
+| Main background | `--vscode-editor-background` |
+| Main text | `--vscode-editor-foreground` |
+| Sidebar background | `--vscode-sideBar-background` |
+| Sidebar text | `--vscode-sideBar-foreground` |
+| Active table item bg | `--vscode-list-activeSelectionBackground` |
+| Active table item text | `--vscode-list-activeSelectionForeground` |
+| Table row hover | `--vscode-list-hoverBackground` |
+| Selected data row | `--vscode-list-inactiveSelectionBackground` |
+| Type badge bg | `--vscode-badge-background` |
+| Type badge text | `--vscode-badge-foreground` |
+| Filter chip bg | `--vscode-badge-background` |
+| Filter chip text | `--vscode-badge-foreground` |
+| Search input bg | `--vscode-input-background` |
+| Search input text | `--vscode-input-foreground` |
+| Search border | `--vscode-input-border, var(--vscode-panel-border, #454545)` |
+| Focus ring | `--vscode-focusBorder` |
+| Panel divider | `--vscode-panel-border` |
+| Muted / NULL text | `--vscode-descriptionForeground` |
+| Detail drawer bg | `--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background)` |
+| Detail drawer border | `--vscode-panel-border` |
+| Button bg | `--vscode-button-background` |
+| Button text | `--vscode-button-foreground` |
+| Button hover | `--vscode-button-hoverBackground` |
+
+### UX behaviors
+
+**Table sidebar:**
+- On open, the default table (highest row count) is pre-selected and its data shown immediately — no click required
+- Row count badge: shows `12/84` (filtered/total) when any filter or search is active; shows `84` otherwise
+- Clicking a table sends `{ type: 'selectTable', tableName }` and resets all filters, search, sort, and page
+- Async count update: badges show `...` until the backfill message arrives
+
+**Column headers:**
+- Each header shows `name  TYPE` where `TYPE` is a compact badge (`TEXT`, `INT`, `REAL`, `BLOB`, `NUM`)
+- Click header → sort ascending; click again → descending; click again → no sort. Arrow `↑` / `↓` indicates current direction
+- A small filter icon appears on column header hover (not always visible — avoids clutter). Clicking opens a floating dropdown below the header anchored to that column
+- Dropdown content is type-aware:
+  - `TEXT` / `NUM`: text input (substring match)
+  - `INT` / `REAL`: operator selector (`=`, `>`, `<`) plus a number input
+  - `BLOB`: disabled, tooltip: "BLOB columns cannot be filtered"
+- Confirming a filter closes the dropdown and adds a chip to the active filters bar
+
+**Global search bar:**
+- Substring match across all non-BLOB columns, case-insensitive (`LIKE '%value%'`)
+- Posts `query` message on 300ms debounce after each keystroke
+- `×` button in the search bar clears it and re-queries
+
+**Active filter chips:**
+- Rendered above the grid, hidden when empty
+- Each chip: `column: value [×]` for text/number filters, `column > value [×]` for comparisons
+- `[× all]` button clears all chips and the search bar in one action
+
+**Data grid cells:**
+- Text longer than 40 chars: truncated with `…`; full value visible in the detail drawer
+- `null` SQL values: rendered as italic `null` in `--vscode-descriptionForeground` — visually distinct from an empty string
+- BLOB values: rendered as `[blob · N KB]` in muted style; no binary content shown
+- Clicking any row opens the detail drawer
+
+**Detail drawer:**
+- Slides up from the bottom using `transform: translateY` with a 150ms ease transition
+- Height: 35% of viewport; a drag handle at the top edge allows resizing (JS drag listener)
+- Shows all columns as vertical key-value pairs (column name left, full value right, word-wrap on)
+- BLOB values: show `[binary data · N bytes]` with a "Copy hex" button; button posts `{ type: 'copyHex', hex: '...' }` to the extension host, which writes it to clipboard via `vscode.env.clipboard.writeText`
+- "Copy row as JSON" button copies the entire row as a JSON object (keys = column names) — directly useful for pasting into LLM prompts
+- Closed by `×` button or `Escape`
+
+**Pagination:**
+- Label: `Rows 1–50 of 84` or `Rows 1–12 of 12 (filtered)` when filters are active
+- Prev button disabled on page 0; Next button disabled on last page
+- Any filter/search/table-selection change resets to page 0
+
+**Loading state:**
+- A subtle inline spinner overlay is shown over the data grid (only) during each query. The sidebar remains interactive
+
+**Empty states:**
+- Empty table (zero rows total): "This table has no rows." centered in the grid
+- Filters produce no results: "No rows match the current filters." with a "Clear all filters" link
+- These are plain sentences, no SQL jargon
+
+**Keyboard shortcuts:**
+- `Ctrl+F` / `Cmd+F`: focus the search bar
+- `↑` / `↓`: navigate rows in the grid
+- `Enter`: open detail drawer for focused row
+- `Escape`: close detail drawer (if open), or clear search (if drawer is closed and search is focused)
+
+**Accessibility:**
+- Data grid uses `role="grid"`, `role="row"`, `role="gridcell"`
+- Sorted column header has `aria-sort="ascending"` / `"descending"`
+- Filter chips have `aria-label="Remove filter: column: value"`
+- Focus is returned to the triggering row when the detail drawer closes
+
+---
+
+## Message protocol
+
+**Extension host → webview:**
 
 ```js
-const COMMAND_SAVE_FILTER_RESULT = 'token-budget-builder.saveFilterResult';
+// Sent once immediately after the panel opens
+{ type: 'init', fileName, tables: [{name, rowCount}], activeTable: string,
+  schema: [{name, type, notnull, pk}], rows: any[][], totalRows: number }
 
-// Add at the end of the returned action items array:
-...(onResult ? [new FilterActionItem(
-  'Save result to file...',
-  COMMAND_SAVE_FILTER_RESULT,
-  'save',
-  'Save this filter result as a file on disk.'
-)] : []),
+// Sent after every query/selectTable message
+{ type: 'tableData', activeTable: string, schema: [{name, type, notnull, pk}],
+  rows: any[][], totalRows: number, filteredCount: number, page: number }
+
+// Sent asynchronously as row counts complete for large DBs
+{ type: 'rowCounts', counts: { [tableName]: number } }
 ```
 
-Only visible when a filter result is the active editor, preventing confusion when no result is open.
+**Webview → extension host:**
 
-**Register in `package.json`** under `contributes.commands`:
+```js
+{ type: 'query', tableName: string, search: string,
+  columnFilters: [{column, op, value}], sort: {column, dir}|null, page: number }
+{ type: 'selectTable', tableName: string }
+{ type: 'copyHex', hex: string }   // hex string of BLOB bytes
+```
+
+---
+
+## Changes to existing files
+
+### `src/extension.js`
+- Add `const { openSqliteViewer } = require('./sqliteViewer');` near other requires
+- Register command `token-budget-builder.openSqliteViewer`:
+  ```js
+  vscode.commands.registerCommand('token-budget-builder.openSqliteViewer', async (fileUri) => {
+    await openSqliteViewer(context, fileUri);
+  })
+  ```
+- Push to `context.subscriptions`
+
+### `package.json`
+**New command:**
+```json
+{ "command": "token-budget-builder.openSqliteViewer", "title": "Open SQLite Viewer" }
+```
+
+**Explorer context menu entry** (`.sqlite` and `.db`, not folders):
 ```json
 {
-  "command": "token-budget-builder.saveFilterResult",
-  "title": "Save Filter Result to File",
-  "category": "Context Compressor"
+  "command": "token-budget-builder.openSqliteViewer",
+  "group": "z_contextcompressor@3",
+  "when": "resourceExtname == .sqlite || resourceExtname == .db"
 }
 ```
 
----
-
-### J - Context lines: number input instead of fixed options
-
-**Files:** `src/extension.js` - `setContextLinesCommand` lines 1159-1176
-
-Replace `showQuickPick` with `showInputBox` accepting any non-negative integer. Remove the `CONTEXT_LINES_OPTIONS` constraint.
-
-```js
-const setContextLinesCommand = vscode.commands.registerCommand(
-  'token-budget-builder.setContextLines',
-  async () => {
-    const current = getContextLines();
-    const input = await vscode.window.showInputBox({
-      title: 'Context lines around each match',
-      prompt: 'Enter a number (0 = matched lines only)',
-      value: String(current),
-      validateInput: val => {
-        const n = parseInt(val, 10);
-        return (!Number.isInteger(n) || n < 0) ? 'Enter a whole number 0 or greater' : null;
-      },
-    });
-    if (input === undefined) return;
-    const lines = parseInt(input, 10);
-    await context.workspaceState.update(CONTEXT_LINES_STORAGE_KEY, lines);
-    filterPanelProvider.refresh();
-  }
-);
-```
-
-Remove the `CONTEXT_LINES_OPTIONS` constant and its import if nothing else references it.
+`resourceExtname` includes the leading dot and is empty for folders, so this condition already excludes folders without an explicit `explorerResourceIsFolder` guard.
 
 ---
 
-## Tests
+## New files
 
-- `buildFilterState` in `filterPanelProvider.js` is already exported. No new pure functions are added by these changes that need a test file.
-- If `formatMatchRate` (item H percentage) is extracted to a standalone function, add it to `test/filterPanelProvider.test.js`. Otherwise the inline expression is too simple to warrant a separate test.
-- Run `npm test` after all changes to confirm existing tests still pass.
+| File | Description |
+|---|---|
+| `src/sqliteReader.js` | Pure Node.js sql.js wrapper — no VS Code dependency |
+| `src/sqliteViewer.js` | Webview panel lifecycle + `buildSqliteViewerHtml` |
+| `test/sqliteReader.test.js` | All `sqliteReader` unit tests |
 
 ---
 
-## Implementation Order
+## Test: `test/sqliteReader.test.js`
 
-1. G (icon change) - 1 line, zero risk, immediate visual improvement
-2. H (percentage) - 1 expression, no dependencies
-3. B (empty state) - 1 line
-4. J (context lines input) - isolated command change
-5. A (active indicator) - adds constructor callback; update extension.js + filterPanelProvider.js
-6. C (adaptive labels) - adds second callback; depends on LOG_FILTER_SCHEME being available
-7. F (persist patterns) - storage-only, no UI change
-8. E (quick pick) - depends on F for the recent patterns list
-9. D (per-step counts) - data structure addition in history
-10. K (funnel view) - depends on D for counts; pure rendering change
-11. I (save command) - new command + panel item; depends on C's `getIsActiveEditorFilterResult` callback
+Uses `sql.js` directly in the test harness to create in-memory DBs — no filesystem access, no VS Code dependency, no mocking needed.
+
+Tests to cover:
+- `listTables` returns correct names and row counts from a known schema
+- `getTableSchema` returns correct column names, types, notnull, and pk flags
+- `getRows` with no query options returns first 50 rows and correct `totalRows`
+- `getRows` global search filters by substring across text columns, case-insensitively
+- `getRows` column filter `eq` / `gt` / `lt` work for integer columns
+- `getRows` column filter `contains` works for text columns
+- `getRows` sort ascending and descending returns correct row order
+- `getRows` page 1 returns the correct offset
+- `getRows` with an unrecognized table name throws (SQL injection guard)
+- `getRows` with an unrecognized column in `columnFilters` throws
+- `getRows` with an unrecognized column in `sort` throws
+- `null` SQL values come back as JS `null`
+- BLOB values come back as `{ __type: 'blob', size: N }` without raw bytes
+- `openDatabase` with invalid bytes throws a typed error
+
+Test file structure follows the project's existing pattern: `'use strict'`, `node:assert/strict`, mocha `describe`/`it` blocks.
+
+---
+
+## Dependency
+
+`sql.js` — WASM-based SQLite, no native compilation, ships cleanly in a `.vsix`. The WASM binary is located via `locateFile` pointing to `node_modules/sql.js/dist/` using `__dirname`-relative path from `sqliteReader.js`. No additional dependencies.
+
+---
+
+## Verification
+
+1. `npm install sql.js` — no peer conflicts
+2. `npm test` — all existing and new tests pass
+3. Press `F5` to open Extension Host
+4. Right-click a `.sqlite` file → confirm "Open SQLite Viewer" appears
+5. Right-click a folder → confirm the entry does NOT appear
+6. Open a multi-table DB — sidebar lists all tables; table with most rows is pre-selected
+7. Confirm initial data renders without any user interaction
+8. Switch VS Code color theme (light and dark) — confirm all colors adapt correctly
+9. Type in the search bar — rows filter with ~300ms debounce; badge updates to `N/total`
+10. Click a column header — sort toggles asc/desc/none with arrow indicator
+11. Hover a column header — filter icon appears; click it — type-appropriate dropdown opens
+12. Apply a column filter — chip appears in filter bar; table updates; sidebar badge updates
+13. Click `× all` — all chips and search clear, full table reloads
+14. Click a row — detail drawer slides up with all column values
+15. In the drawer, click "Copy row as JSON" — valid JSON lands in clipboard
+16. Click a BLOB cell's "Copy hex" — extension host writes hex to clipboard with no error
+17. Test a table with NULL values — cells show italic `null`, distinct from empty string
+18. Page through a table with >50 rows — Prev/Next work; label shows correct range
+19. Open the same `.sqlite` file a second time — existing panel is focused, not duplicated
+20. Close the panel — no errors in VS Code Developer Tools console; DB is closed

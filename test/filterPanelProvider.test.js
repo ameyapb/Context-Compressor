@@ -135,6 +135,44 @@ describe('FilterHistoryGroupItem', () => {
     assert.ok(item.tooltip.includes('42'));
     assert.ok(item.tooltip.includes('1,000'));
   });
+
+  it('uses filter icon when not active', () => {
+    const item = new FilterHistoryGroupItem(makeEntry(), false);
+    assert.equal(item.iconPath.id, 'filter');
+  });
+
+  it('uses eye icon when active', () => {
+    const item = new FilterHistoryGroupItem(makeEntry(), true);
+    assert.equal(item.iconPath.id, 'eye');
+  });
+
+  it('uses filter icon when isActive is not provided', () => {
+    const item = new FilterHistoryGroupItem(makeEntry());
+    assert.equal(item.iconPath.id, 'filter');
+  });
+
+  it('shows 0% when total is 0', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ matched: 0, total: 0 }));
+    assert.ok(item.description.includes('(0%)'));
+  });
+
+  it('appends step count to label when chainStepCounts is provided', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ chain: ['ERROR'], chainStepCounts: [42] }));
+    assert.equal(item.label, 'ERROR (42)');
+  });
+
+  it('annotates each step in a multi-step chain with its count', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({
+      chain: ['ERROR', 'auth'],
+      chainStepCounts: [100, 5],
+    }));
+    assert.equal(item.label, 'ERROR (100) > auth (5)');
+  });
+
+  it('omits count annotation for steps without a chainStepCounts entry', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ chain: ['ERROR'], chainStepCounts: undefined }));
+    assert.equal(item.label, 'ERROR');
+  });
 });
 
 describe('buildFilterState — no filter', () => {

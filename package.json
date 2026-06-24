@@ -2,7 +2,7 @@
   "name": "token-budget-builder",
   "displayName": "Token Budget Builder",
   "description": "Build, compress, and copy multi-file prompts with per-model token budgets, import-aware file suggestions, saved presets, and reusable prompt templates; for Claude, GPT-4, Gemini, and more",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "Uchiha-Labs",
   "license": "MIT",
   "repository": {
@@ -192,6 +192,10 @@
         "command": "token-budget-builder.clearFilterHistory",
         "title": "Clear Filter History",
         "category": "Context Compressor"
+      },
+      {
+        "command": "token-budget-builder.openSqliteViewer",
+        "title": "Open SQLite Viewer"
       }
     ],
     "menus": {
@@ -203,6 +207,11 @@
         {
           "command": "token-budget-builder.countFolderTokens",
           "group": "z_contextcompressor@2"
+        },
+        {
+          "command": "token-budget-builder.openSqliteViewer",
+          "group": "z_contextcompressor@3",
+          "when": "resourceExtname == .sqlite || resourceExtname == .db"
         }
       ],
       "editor/context": [
@@ -292,7 +301,8 @@
     "test": "mocha test/**/*.test.js"
   },
   "dependencies": {
-    "gpt-tokenizer": "^2.1.2"
+    "gpt-tokenizer": "^2.1.2",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "@types/vscode": "^1.74.0",
