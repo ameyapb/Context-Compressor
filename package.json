@@ -182,6 +182,16 @@
       {
         "command": "token-budget-builder.setContextLines",
         "title": "Context Compressor: Set Context Lines"
+      },
+      {
+        "command": "token-budget-builder.saveFilterResult",
+        "title": "Save Filter Result to File",
+        "category": "Context Compressor"
+      },
+      {
+        "command": "token-budget-builder.clearFilterHistory",
+        "title": "Clear Filter History",
+        "category": "Context Compressor"
       }
     ],
     "menus": {

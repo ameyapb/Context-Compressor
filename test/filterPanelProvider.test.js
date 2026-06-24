@@ -98,9 +98,9 @@ describe('FilterHistoryGroupItem', () => {
     assert.equal(item.label, 'ERROR');
   });
 
-  it('sets description to matched count with "matched" suffix', () => {
-    const item = new FilterHistoryGroupItem(makeEntry({ matched: 42 }));
-    assert.equal(item.description, '42 matched');
+  it('sets description to matched count with percentage', () => {
+    const item = new FilterHistoryGroupItem(makeEntry({ matched: 42, total: 1000 }));
+    assert.equal(item.description, '42 matched (4%)');
   });
 
   it('sets contextValue to CONTEXT_VALUE_FILTER_HISTORY_GROUP', () => {

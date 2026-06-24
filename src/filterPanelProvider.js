@@ -10,6 +10,8 @@ const COMMAND_FILTER_LINES = 'token-budget-builder.filterLines';
 const COMMAND_FILTER_LINES_INVERSE = 'token-budget-builder.filterLinesInverse';
 const COMMAND_FILTER_FROM_SELECTION = 'token-budget-builder.filterLinesFromSelection';
 const COMMAND_SET_CONTEXT_LINES = 'token-budget-builder.setContextLines';
+const COMMAND_SAVE_FILTER_RESULT = 'token-budget-builder.saveFilterResult';
+const COMMAND_CLEAR_FILTER_HISTORY = 'token-budget-builder.clearFilterHistory';
 
 const SELECTION_PREVIEW_MAX_LENGTH = 25;
 const CONTEXT_VALUE_FILTER_SOURCE = 'filterSource';
@@ -58,11 +60,16 @@ class FilterSourceItem extends vscode.TreeItem {
 }
 
 class FilterHistoryGroupItem extends vscode.TreeItem {
-  constructor(entry) {
-    super(entry.chain.join(' > '), vscode.TreeItemCollapsibleState.Collapsed);
+  constructor(entry, isActive) {
+    const chainLabel = entry.chain.map((pattern, i) => {
+      const count = entry.chainStepCounts?.[i];
+      return count !== undefined ? `${pattern} (${count.toLocaleString()})` : pattern;
+    }).join(' > ');
+    super(chainLabel, vscode.TreeItemCollapsibleState.Collapsed);
     this.entry = entry;
-    this.description = `${entry.matched.toLocaleString()} matched`;
-    this.iconPath = new vscode.ThemeIcon('filter');
+    const pct = entry.total > 0 ? Math.round((entry.matched / entry.total) * 100) : 0;
+    this.description = `${entry.matched.toLocaleString()} matched (${pct}%)`;
+    this.iconPath = new vscode.ThemeIcon(isActive ? 'eye' : 'filter');
     this.contextValue = CONTEXT_VALUE_FILTER_HISTORY_GROUP;
     this.command = { command: 'vscode.open', title: 'Open filter result', arguments: [entry.uri] };
     this.tooltip = `Source: ${entry.source}\nMatched: ${entry.matched.toLocaleString()} of ${entry.total.toLocaleString()} lines`;
@@ -81,11 +88,13 @@ class FilterActionItem extends vscode.TreeItem {
 }
 
 class FilterPanelProvider {
-  constructor(getContextLines, getFilterHistory) {
+  constructor(getContextLines, getFilterHistory, getActiveEditorUri, getIsActiveEditorFilterResult) {
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
     this._getContextLines = getContextLines;
     this._getFilterHistory = getFilterHistory;
+    this._getActiveEditorUri = getActiveEditorUri;
+    this._getIsActiveEditorFilterResult = getIsActiveEditorFilterResult;
   }
 
   refresh() {
@@ -99,8 +108,8 @@ class FilterPanelProvider {
   getChildren(element) {
     if (!element) {
       return [
-        new FilterGroupItem(GROUP_ID_ACTIVE_FILTER, 'Filter Summary', 'filter'),
-        new FilterGroupItem(GROUP_ID_ACTIONS, 'Actions', 'zap'),
+        new FilterGroupItem(GROUP_ID_ACTIVE_FILTER, 'Filter Summary', 'history'),
+        new FilterGroupItem(GROUP_ID_ACTIONS, 'Actions', 'list-unordered'),
       ];
     }
 
@@ -122,27 +131,29 @@ class FilterPanelProvider {
   _buildHistoryItems() {
     const history = this._getFilterHistory();
     if (history.length === 0) {
-      return [new FilterInfoItem('No filter results yet', '', 'circle-slash')];
+      return [new FilterInfoItem('Open a file and use an action below', '', 'info')];
     }
-    return history.map((entry) => new FilterHistoryGroupItem(entry));
+    const activeUriStr = this._getActiveEditorUri?.()?.toString();
+    const items = history.map((entry) =>
+      new FilterHistoryGroupItem(entry, entry.uri.toString() === activeUriStr)
+    );
+    items.push(new FilterActionItem('Clear history', COMMAND_CLEAR_FILTER_HISTORY, 'clear-all', 'Reset all filter history.'));
+    return items;
   }
 
   _buildHistoryGroupChildren(entry) {
     const items = [];
     items.push(new FilterSourceItem(entry.source, entry.sourceUri));
-    const stepCount = entry.chain.length;
     entry.chain.forEach((pattern, index) => {
-      items.push(new FilterInfoItem(
-        `"${pattern}"`,
-        `step ${index + 1} of ${stepCount}`,
-        'search'
-      ));
+      const stepCount = entry.chainStepCounts?.[index];
+      const denominator = index === 0
+        ? entry.total
+        : entry.chainStepCounts?.[index - 1];
+      const countStr = (stepCount !== undefined && denominator !== undefined)
+        ? `${stepCount.toLocaleString()} of ${denominator.toLocaleString()}`
+        : `step ${index + 1} of ${entry.chain.length}`;
+      items.push(new FilterInfoItem(`"${pattern}"`, countStr, 'search'));
     });
-    items.push(new FilterInfoItem(
-      `${entry.matched.toLocaleString()} matched`,
-      `of ${entry.total.toLocaleString()} lines`,
-      'check'
-    ));
     return items;
   }
 
@@ -166,33 +177,48 @@ class FilterPanelProvider {
       ? 'Context: none'
       : `Context: ${contextLines} line${contextLines === 1 ? '' : 's'} around matches`;
 
-    return [
+    const onResult = this._getIsActiveEditorFilterResult?.();
+    const keepLabel = onResult ? 'Keep matching lines in result...' : 'Keep matching lines...';
+    const removeLabel = onResult ? 'Remove matching lines in result...' : 'Remove matching lines...';
+
+    const items = [
       new FilterActionItem(
-        'Keep matching lines...',
+        keepLabel,
         COMMAND_FILTER_LINES,
-        'filter',
+        'check',
         'Keep only lines containing this text. Wrap in /slashes/ for regex, e.g. /\\bERROR\\b/i.'
       ),
       new FilterActionItem(
-        'Remove matching lines...',
+        removeLabel,
         COMMAND_FILTER_LINES_INVERSE,
-        'filter-filled',
+        'close',
         'Remove all lines containing this text. Wrap in /slashes/ for regex.'
       ),
       new FilterActionItem(
         fromSelectionLabel,
         COMMAND_FILTER_FROM_SELECTION,
-        'whole-word',
+        'selection',
         'Keep only lines containing the selected text (literal match, case-insensitive).',
         fromSelectionDescription
       ),
       new FilterActionItem(
         contextLabel,
         COMMAND_SET_CONTEXT_LINES,
-        'settings',
+        'unfold',
         'Set how many lines to include above and below each match. Click to change.'
       ),
     ];
+
+    if (onResult) {
+      items.push(new FilterActionItem(
+        'Save result to file...',
+        COMMAND_SAVE_FILTER_RESULT,
+        'save',
+        'Save this filter result as a file on disk.'
+      ));
+    }
+
+    return items;
   }
 }
 

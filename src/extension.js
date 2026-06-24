@@ -50,7 +50,8 @@ const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';
 const TEMPLATE_DRAFT_FILENAME = 'template-draft.md';
 const CONTEXT_LINES_STORAGE_KEY = 'log-filter-context-lines';
-const CONTEXT_LINES_OPTIONS = [0, 1, 2, 5];
+const RECENT_PATTERNS_STORAGE_KEY = 'filter-recent-patterns';
+const RECENT_PATTERNS_MAX = 5;
 
 class PromptTemplateItem extends vscode.TreeItem {
   constructor(templateId, name, body) {
@@ -341,7 +342,9 @@ function activate(context) {
 
   const filterPanelProvider = new FilterPanelProvider(
     getContextLines,
-    () => filterHistory
+    () => filterHistory,
+    () => vscode.window.activeTextEditor?.document?.uri,
+    () => vscode.window.activeTextEditor?.document?.uri?.scheme === LOG_FILTER_SCHEME
   );
   const filterTreeView = vscode.window.createTreeView('token-budget-builder-filter', {
     treeDataProvider: filterPanelProvider,
@@ -425,18 +428,26 @@ function activate(context) {
     }
 
     let resolvedPattern;
+    let rawInput = null;
     if (preSuppliedPattern !== null) {
       resolvedPattern = { pattern: preSuppliedPattern, flags: 'i' };
     } else {
-      const rawInput = await vscode.window.showInputBox({
-        prompt: invert
-          ? 'Remove lines containing: (wrap in /slashes/ for regex)'
-          : 'Keep lines containing: (wrap in /slashes/ for regex)',
-        placeHolder: invert ? 'debug' : 'error',
+      const recentPatterns = context.workspaceState.get(RECENT_PATTERNS_STORAGE_KEY, []);
+      const qp = vscode.window.createQuickPick();
+      qp.title = invert ? 'Remove lines containing:' : 'Keep lines containing:';
+      qp.placeholder = invert ? 'debug' : 'error';
+      qp.items = recentPatterns.map(p => ({ label: p, description: 'recent' }));
+      rawInput = await new Promise(resolve => {
+        qp.onDidAccept(() => {
+          const value = qp.selectedItems.length > 0 ? qp.selectedItems[0].label : qp.value;
+          resolve(value || null);
+          qp.hide();
+        });
+        qp.onDidHide(() => resolve(null));
+        qp.show();
       });
-      if (rawInput === undefined || rawInput === null) return;
-      if (rawInput.trim() === '') return;
-      resolvedPattern = resolveFilterPattern(rawInput);
+      if (!rawInput || !rawInput.trim()) return;
+      resolvedPattern = resolveFilterPattern(rawInput.trim());
     }
 
     const contextLines = getContextLines();
@@ -456,6 +467,11 @@ function activate(context) {
       baseTotal = rawLines.length;
       existingChain = [];
     }
+
+    const sourceHistoryEntry = filterHistory.find(
+      h => h.uri.toString() === editor.document.uri.toString()
+    );
+    const existingStepCounts = sourceHistoryEntry?.chainStepCounts ?? [];
 
     const resolvedSourceUri = parsed
       ? (logFilterContentProvider.getSourceUri(editor.document.uri) ?? editor.document.uri)
@@ -487,10 +503,18 @@ function activate(context) {
       matched: result.matchedCount,
       total: baseTotal,
       sourceUri: resolvedSourceUri,
+      chainStepCounts: [...existingStepCounts, result.matchedCount],
     });
     openFilterUris.add(resultUri.toString());
     const doc = await vscode.workspace.openTextDocument(resultUri);
     await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+
+    if (preSuppliedPattern === null) {
+      const existing = context.workspaceState.get(RECENT_PATTERNS_STORAGE_KEY, []);
+      const updated = [rawInput, ...existing.filter(p => p !== rawInput)].slice(0, RECENT_PATTERNS_MAX);
+      await context.workspaceState.update(RECENT_PATTERNS_STORAGE_KEY, updated);
+    }
+
     filterPanelProvider.refresh();
   }
 
@@ -1160,20 +1184,52 @@ function activate(context) {
     'token-budget-builder.setContextLines',
     async () => {
       const current = getContextLines();
-      const items = CONTEXT_LINES_OPTIONS.map(n => ({
-        label: n === 0 ? '0 lines (default)' : `${n} line${n === 1 ? '' : 's'} around each match`,
-        value: n,
-        picked: n === current,
-      }));
-      const picked = await vscode.window.showQuickPick(items, {
-        placeHolder: 'How many lines to show around each match?',
+      const input = await vscode.window.showInputBox({
+        title: 'Context lines around each match',
+        prompt: 'Enter a number (0 = matched lines only)',
+        value: String(current),
+        validateInput: val => {
+          const n = parseInt(val, 10);
+          return (!Number.isInteger(n) || n < 0) ? 'Enter a whole number 0 or greater' : null;
+        },
       });
-      if (!picked) return;
-      await context.workspaceState.update(CONTEXT_LINES_STORAGE_KEY, picked.value);
+      if (input === undefined) return;
+      const lines = parseInt(input, 10);
+      await context.workspaceState.update(CONTEXT_LINES_STORAGE_KEY, lines);
       filterPanelProvider.refresh();
     }
   );
   context.subscriptions.push(setContextLinesCommand);
+
+  const saveFilterResultCommand = vscode.commands.registerCommand(
+    'token-budget-builder.saveFilterResult',
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.uri.scheme !== LOG_FILTER_SCHEME) {
+        vscode.window.showInformationMessage('Open a filter result tab first.');
+        return;
+      }
+      const saveUri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file('filter-result.log'),
+        filters: { 'Log files': ['log', 'txt'], 'All files': ['*'] },
+      });
+      if (!saveUri) return;
+      const content = editor.document.getText();
+      await vscode.workspace.fs.writeFile(saveUri, Buffer.from(content, 'utf8'));
+      vscode.window.showInformationMessage(`Saved to ${path.basename(saveUri.fsPath)}`);
+    }
+  );
+  context.subscriptions.push(saveFilterResultCommand);
+
+  const clearFilterHistoryCommand = vscode.commands.registerCommand(
+    'token-budget-builder.clearFilterHistory',
+    () => {
+      filterHistory.length = 0;
+      logFilterContentProvider.clearAll();
+      filterPanelProvider.refresh();
+    }
+  );
+  context.subscriptions.push(clearFilterHistoryCommand);
 
   let selectionRefreshTimer;
   context.subscriptions.push(
