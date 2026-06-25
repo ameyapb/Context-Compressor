@@ -1,6 +1,3 @@
-const { encode: encodeWithCl100k } = require('gpt-tokenizer');
-const { encode: encodeWithO200k } = require('gpt-tokenizer/encoding/o200k_base');
-
 const ENCODING_CL100K = 'cl100k_base';
 const ENCODING_O200K = 'o200k_base';
 
@@ -52,7 +49,10 @@ const SUPPORTED_MODELS = [
 function getEncoderForModel(modelId) {
   const model = SUPPORTED_MODELS.find((m) => m.id === modelId);
   const encoding = model ? model.encoding : ENCODING_CL100K;
-  return encoding === ENCODING_O200K ? encodeWithO200k : encodeWithCl100k;
+  if (encoding === ENCODING_O200K) {
+    return require('gpt-tokenizer/encoding/o200k_base').encode;
+  }
+  return require('gpt-tokenizer').encode;
 }
 
 function getModelById(modelId) {

@@ -411,7 +411,7 @@ function activate(context) {
   );
 
   initializeContextBuilder(getEncoderForModel(currentModelId));
-  refreshContextDisplay();
+  setImmediate(() => refreshContextDisplay());
 
   function resolveFilterPattern(input) {
     const regexMatch = input.match(/^\/(.+)\/([gimsuy]*)$/);
@@ -1225,7 +1225,17 @@ function activate(context) {
   const openSqliteViewerCommand = vscode.commands.registerCommand(
     'token-budget-builder.openSqliteViewer',
     async (fileUri) => {
-      await openSqliteViewer(context, fileUri);
+      let resolvedUri = fileUri;
+      if (!resolvedUri) {
+        const picked = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { 'SQLite Databases': ['sqlite', 'db'] },
+          title: 'Open Database File',
+        });
+        if (!picked || picked.length === 0) return;
+        resolvedUri = picked[0];
+      }
+      await openSqliteViewer(context, resolvedUri);
     }
   );
   context.subscriptions.push(openSqliteViewerCommand);
@@ -1241,6 +1251,7 @@ function activate(context) {
   context.subscriptions.push(clearFilterHistoryCommand);
 
   let selectionRefreshTimer;
+  let editorSwitchTimer;
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection(() => {
       clearTimeout(selectionRefreshTimer);
@@ -1250,8 +1261,11 @@ function activate(context) {
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(() => {
-      refreshContextDisplay();
-      filterPanelProvider.refresh();
+      clearTimeout(editorSwitchTimer);
+      editorSwitchTimer = setTimeout(() => {
+        refreshContextDisplay();
+        filterPanelProvider.refresh();
+      }, DEBOUNCE_DELAY_MS);
     })
   );
 
