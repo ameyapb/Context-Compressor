@@ -38,6 +38,7 @@ const {
 const { FilterPanelProvider } = require('./filterPanelProvider');
 const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('./logFilterContentProvider');
 const { openSqliteViewer } = require('./sqliteViewer');
+const { openTeamTrackerPanel } = require('./teamTracker');
 const {
   filterLines,
   FILTER_HEADER_TAG,
@@ -352,6 +353,12 @@ function activate(context) {
     showCollapseAll: false,
   });
   context.subscriptions.push(filterTreeView);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('token-budget-builder.openTeamTracker', () => {
+      openTeamTrackerPanel(context);
+    })
+  );
 
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((doc) => {

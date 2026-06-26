@@ -79,6 +79,10 @@
         {
           "id": "token-budget-builder-sqlite",
           "name": "SQLite Viewer"
+        },
+        {
+          "id": "token-budget-builder-team",
+          "name": "Team Tracker"
         }
       ]
     },
@@ -90,6 +94,10 @@
       {
         "view": "token-budget-builder-sqlite",
         "contents": "Browse SQLite and .db database files in an interactive table viewer.\n\nRight-click any .sqlite or .db file in the Explorer to open it, or use the button below.\n\n[Open Database File](command:token-budget-builder.openSqliteViewer)"
+      },
+      {
+        "view": "token-budget-builder-team",
+        "contents": "Track your team's links, notes, and tasks in one place.\n\n[Open Team Board](command:token-budget-builder.openTeamTracker)"
       }
     ],
     "commands": [
@@ -205,6 +213,12 @@
         "command": "token-budget-builder.openSqliteViewer",
         "title": "Open SQLite Viewer",
         "icon": "$(database)"
+      },
+      {
+        "command": "token-budget-builder.openTeamTracker",
+        "title": "Open Team Board",
+        "category": "Context Compressor",
+        "icon": "$(organization)"
       }
     ],
     "menus": {
@@ -284,6 +298,11 @@
         {
           "command": "token-budget-builder.openSqliteViewer",
           "when": "view == token-budget-builder-sqlite",
+          "group": "navigation@1"
+        },
+        {
+          "command": "token-budget-builder.openTeamTracker",
+          "when": "view == token-budget-builder-team",
           "group": "navigation@1"
         }
       ],
