@@ -34,6 +34,15 @@ function nextIdFromCollection(items) {
   return Math.max(...items.map(item => item.id)) + 1;
 }
 
+function isAllowedExternalUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch (_err) {
+    return false;
+  }
+}
+
 function resolveInitialState(rawState) {
   if (!rawState || typeof rawState !== 'object') {
     return { selectedMemberId: null, globalLinks: [], members: [] };
@@ -65,4 +74,5 @@ module.exports = {
   createLink,
   nextIdFromCollection,
   resolveInitialState,
+  isAllowedExternalUrl,
 };

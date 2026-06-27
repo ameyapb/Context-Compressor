@@ -3,6 +3,7 @@
 const vscode = require('vscode');
 const crypto = require('crypto');
 const { buildTeamTrackerPanelHtml } = require('./teamTrackerHtml');
+const { isAllowedExternalUrl } = require('./teamTrackerState');
 
 const TEAM_TRACKER_VIEW_ID = 'token-budget-builder-team';
 const TEAM_STATE_GLOBAL_KEY = 'team-tracker.state';
@@ -38,6 +39,7 @@ function openTeamTrackerPanel(context) {
         await context.globalState.update(TEAM_STATE_GLOBAL_KEY, message.state);
       } else if (message.type === 'openUrl') {
         try {
+          if (!isAllowedExternalUrl(message.url)) return;
           await vscode.env.openExternal(vscode.Uri.parse(message.url, true));
         } catch (_err) {
           // malformed URL

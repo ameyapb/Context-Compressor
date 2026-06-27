@@ -54,6 +54,7 @@ const TEMPLATE_DRAFT_FILENAME = 'template-draft.md';
 const CONTEXT_LINES_STORAGE_KEY = 'log-filter-context-lines';
 const RECENT_PATTERNS_STORAGE_KEY = 'filter-recent-patterns';
 const RECENT_PATTERNS_MAX = 5;
+const MAX_FILTER_PATTERN_LENGTH = 500;
 
 class PromptTemplateItem extends vscode.TreeItem {
   constructor(templateId, name, body) {
@@ -456,6 +457,11 @@ function activate(context) {
       });
       if (!rawInput || !rawInput.trim()) return;
       resolvedPattern = resolveFilterPattern(rawInput.trim());
+    }
+
+    if (resolvedPattern.pattern.length > MAX_FILTER_PATTERN_LENGTH) {
+      vscode.window.showErrorMessage(`Filter pattern too long (max ${MAX_FILTER_PATTERN_LENGTH} chars).`);
+      return;
     }
 
     const contextLines = getContextLines();

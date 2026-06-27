@@ -2,9 +2,13 @@
 
 const FILTER_HEADER_TAG = '[line-filter]';
 const CONTEXT_SEPARATOR = '---';
+const VALID_FLAGS_PATTERN = /^[gimsuy]*$/;
 
 function filterLines(text, pattern, options) {
   const { invert = false, contextBefore = 0, contextAfter = 0, flags = '' } = options || {};
+  if (!VALID_FLAGS_PATTERN.test(flags)) throw new Error(`Invalid regex flags: "${flags}"`);
+  // Callers must cap pattern length to prevent ReDoS: nested quantifiers on long non-matching
+  // strings cause exponential backtracking that freezes the synchronous extension host thread.
   const regex = new RegExp(pattern, flags);
   const allLines = text === '' ? [] : text.split('\n');
   const totalCount = allLines.length;

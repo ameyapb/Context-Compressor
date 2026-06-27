@@ -664,8 +664,8 @@ function buildTeamLayout() {
 }
 
 function buildTeamScript(nonce, state) {
-  const stateJson = JSON.stringify(state);
-  const colorsJson = JSON.stringify(MEMBER_COLORS);
+  const stateJson = JSON.stringify(state).replace(/</g, '\\u003c');
+  const colorsJson = JSON.stringify(MEMBER_COLORS).replace(/</g, '\\u003c');
 
   return `<script nonce="${nonce}">
 'use strict';

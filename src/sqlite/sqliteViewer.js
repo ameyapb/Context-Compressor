@@ -624,17 +624,6 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
     .btn-copy-cell:hover { background: var(--vscode-list-hoverBackground); }
     .data-grid tbody tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
     .data-grid tr.selected td { background: var(--vscode-list-inactiveSelectionBackground) !important; }
-    .html-preview {
-      margin-top: 6px;
-      padding: 8px 10px;
-      border-left: 3px solid var(--vscode-focusBorder, #007acc);
-      background: var(--vscode-textBlockQuote-background, rgba(255,255,255,0.05));
-      border-radius: 0 2px 2px 0;
-      line-height: 1.5;
-    }
-    .html-preview.hidden { display: none; }
-    .html-preview ul, .html-preview ol { margin: 4px 0; padding-left: 18px; }
-    .html-preview p { margin: 4px 0; }
     .drawer-json-tree { width: 100%; padding: 2px 0; }
     .drawer-json-row { display: flex; gap: 8px; padding: 2px 0; align-items: flex-start; }
     .drawer-json-key {
@@ -1114,9 +1103,6 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
               actionsDiv.appendChild(copyPrettyBtn);
             } else {
               valDiv.textContent = cellText;
-              if (containsHtmlTags(cellText)) {
-                attachHtmlRenderToggle(cellText, valDiv, actionsDiv);
-              }
             }
           }
 
@@ -1245,36 +1231,6 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
         return /<[a-zA-Z][^>]{0,100}>/.test(str);
       }
 
-      function attachHtmlRenderToggle(rawText, valueContainer, actionsContainer) {
-        valueContainer.textContent = '';
-        const rawSpan = document.createElement('span');
-        rawSpan.textContent = rawText;
-        valueContainer.appendChild(rawSpan);
-
-        const previewDiv = document.createElement('div');
-        previewDiv.className = 'html-preview hidden';
-        valueContainer.appendChild(previewDiv);
-
-        const renderBtn = document.createElement('button');
-        renderBtn.className = 'btn-copy-cell';
-        renderBtn.textContent = 'Render HTML';
-        let showingHtml = false;
-        renderBtn.addEventListener('click', function() {
-          showingHtml = !showingHtml;
-          if (showingHtml) {
-            previewDiv.innerHTML = rawText;
-            previewDiv.classList.remove('hidden');
-            rawSpan.style.display = 'none';
-            renderBtn.textContent = 'Show raw';
-          } else {
-            previewDiv.classList.add('hidden');
-            rawSpan.style.display = '';
-            renderBtn.textContent = 'Render HTML';
-          }
-        });
-        actionsContainer.appendChild(renderBtn);
-      }
-
       function renderJsonTree(parsedObj, valueContainer, actionsContainer) {
         if (Array.isArray(parsedObj)) {
           valueContainer.textContent = '[' + parsedObj.length + ' items]';
@@ -1296,10 +1252,6 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
           const rawVal = parsedObj[key];
           valEl.textContent = rawVal === null ? 'null' : String(rawVal);
           row.appendChild(valEl);
-
-          if (typeof rawVal === 'string' && containsHtmlTags(rawVal)) {
-            attachHtmlRenderToggle(rawVal, valEl, row);
-          }
 
           tree.appendChild(row);
         });

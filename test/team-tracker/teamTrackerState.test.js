@@ -9,6 +9,7 @@ const {
   createLink,
   nextIdFromCollection,
   resolveInitialState,
+  isAllowedExternalUrl,
 } = require('../../src/team-tracker/teamTrackerState');
 
 describe('MEMBER_COLORS', () => {
@@ -137,5 +138,35 @@ describe('resolveInitialState', () => {
     };
     const result = resolveInitialState(input);
     assert.equal(result.selectedMemberId, 5);
+  });
+});
+
+describe('isAllowedExternalUrl', () => {
+  it('allows https URLs', () => {
+    assert.equal(isAllowedExternalUrl('https://example.com'), true);
+  });
+
+  it('allows http URLs', () => {
+    assert.equal(isAllowedExternalUrl('http://example.com/path?q=1'), true);
+  });
+
+  it('rejects vscode:// scheme', () => {
+    assert.equal(isAllowedExternalUrl('vscode://command/workbench.action.terminal.sendSequence'), false);
+  });
+
+  it('rejects file:// scheme', () => {
+    assert.equal(isAllowedExternalUrl('file:///etc/passwd'), false);
+  });
+
+  it('rejects javascript: scheme', () => {
+    assert.equal(isAllowedExternalUrl('javascript:alert(1)'), false);
+  });
+
+  it('rejects a bare path with no scheme', () => {
+    assert.equal(isAllowedExternalUrl('/relative/path'), false);
+  });
+
+  it('rejects an empty string', () => {
+    assert.equal(isAllowedExternalUrl(''), false);
   });
 });

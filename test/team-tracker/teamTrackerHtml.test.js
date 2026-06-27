@@ -143,6 +143,42 @@ describe('buildTeamTrackerPanelHtml — initial state injection', () => {
   });
 });
 
+describe('buildTeamTrackerPanelHtml — script injection prevention', () => {
+  it('does not allow </script> to appear in the output when a member name contains it', () => {
+    const maliciousState = {
+      members: [{
+        id: 1,
+        name: '</script><meta http-equiv="refresh" content="0;url=https://example.com"><script>',
+        colorIndex: 0,
+        links: [],
+        notes: '',
+        tasks: [],
+      }],
+      globalLinks: [],
+      selectedMemberId: null,
+    };
+    const html = buildTeamTrackerPanelHtml(FAKE_NONCE, maliciousState);
+    assert.ok(!html.includes('</script><meta'), 'injection sequence must not appear literally');
+  });
+
+  it('does not allow </script> to appear when a task text contains it', () => {
+    const maliciousState = {
+      members: [{
+        id: 1,
+        name: 'Safe Name',
+        colorIndex: 0,
+        links: [],
+        notes: '',
+        tasks: [{ id: 1, text: 'ok</script><b>pwned</b><script>', done: false }],
+      }],
+      globalLinks: [],
+      selectedMemberId: null,
+    };
+    const html = buildTeamTrackerPanelHtml(FAKE_NONCE, maliciousState);
+    assert.ok(!html.includes('</script><b>'), 'injection sequence must not appear literally');
+  });
+});
+
 describe('buildTeamTrackerPanelHtml — CSP enforcement', () => {
   it('sets default-src to none', () => {
     const html = buildTeamTrackerPanelHtml(FAKE_NONCE, null);

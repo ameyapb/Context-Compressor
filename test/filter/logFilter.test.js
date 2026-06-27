@@ -104,6 +104,34 @@ describe('filterLines — invalid regex', () => {
   });
 });
 
+describe('filterLines — flags validation', () => {
+  it('throws a descriptive error for an unknown flag', () => {
+    assert.throws(
+      () => filterLines('data', 'test', { flags: 'z' }),
+      /Invalid regex flags: "z"/
+    );
+  });
+
+  it('throws for a flag string containing invalid characters mixed with valid ones', () => {
+    assert.throws(
+      () => filterLines('data', 'test', { flags: 'ig!' }),
+      /Invalid regex flags: "ig!"/
+    );
+  });
+
+  it('does not throw for an empty flags string', () => {
+    assert.doesNotThrow(() => filterLines('data', 'test', { flags: '' }));
+  });
+
+  it('does not throw for flags "i"', () => {
+    assert.doesNotThrow(() => filterLines('data', 'test', { flags: 'i' }));
+  });
+
+  it('does not throw for flags "gi"', () => {
+    assert.doesNotThrow(() => filterLines('data', 'test', { flags: 'gi' }));
+  });
+});
+
 describe('filterLines — flags option', () => {
   it('flags: "i" makes matching case-insensitive', () => {
     const { lines } = filterLines('Error\nerror\nERROR', 'error', { flags: 'i' });
