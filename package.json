@@ -2,7 +2,7 @@
   "name": "token-budget-builder",
   "displayName": "Cabin Kit",
   "description": "Assemble, compress, and copy multi-file AI context with a live token budget. No API keys. Runs entirely in VS Code.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "Uchiha-Labs",
   "license": "MIT",
   "repository": {
