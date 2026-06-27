@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A VS Code extension for assembling, compressing, and copying multi-file prompts with a live token budget for any supported model. It shows a real-time token count in the status bar and provides a sidebar panel to select files, apply local compression, and copy a formatted prompt to the clipboard. Token counting uses `gpt-tokenizer` with `cl100k_base` (GPT-4 family) or `o200k_base` (GPT-4o / o1 family) depending on the selected model.
+Cabin Kit (displayName) is a VS Code extension for assembling, compressing, and copying multi-file prompts with a live token budget for any supported model. It shows a real-time token count in the status bar and provides a sidebar panel to select files, apply local compression, and copy a formatted prompt to the clipboard. Token counting uses `gpt-tokenizer` with `cl100k_base` (GPT-4 family) or `o200k_base` (GPT-4o / o1 family) depending on the selected model.
+
+The repo root contains `LICENSE` (MIT) and `CHANGELOG.md`. Both must be kept up to date when publishing.
 
 ## Development
 

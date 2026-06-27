@@ -4,8 +4,10 @@
 .env
 .env.*
 PLAN.md
+SHIPPING_PLAN.md
 CLAUDE.md
 test/**
 .vscode/**
 .claude/**
+node_modules/**
 *.vsix
