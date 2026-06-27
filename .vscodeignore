@@ -9,5 +9,4 @@ CLAUDE.md
 test/**
 .vscode/**
 .claude/**
-node_modules/**
 *.vsix

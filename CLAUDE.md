@@ -66,7 +66,9 @@ These apply to all code in this repository, no exceptions.
 
 **Production mindset** — Every change must be treated as if it ships to production the next day. No half-finished logic, no debug leftovers, no disabled safety checks.
 
-**Tests** — Every new module or exported function must have a corresponding test file in `test/` added in the same change. Run `npm test` before considering any implementation complete; all tests must pass. Pure modules (no VS Code dependency) are always testable — there is no excuse to skip.
+**Tests** — Every new module or exported function must have a corresponding test file in `test/` added in the same change. Run `npm test` before considering any implementation complete; all tests must pass. Pure modules (no VS Code dependency) are always testable — there is no excuse to skip. VS Code-dependent modules must still export and test their pure helper functions (HTML builders, string utilities, etc.) — the VS Code integration layer is the only untestable part.
+
+**Never remove or weaken tests** — Tests must not be deleted, commented out, or loosened to make a task complete. If a test fails after a change, fix the code to restore the behavior, not the test. If a feature is intentionally removed, the failing test is evidence that must be explicitly discussed and confirmed before the test is touched. Silently dropping tests to unblock a refactor or security fix is never acceptable — it is how features disappear undetected.
 
 **Keep this file updated** — Update this file in the same change whenever: the architecture changes (new module, renamed export, new command), a coding rule is added or modified, or a development workflow step changes.
 

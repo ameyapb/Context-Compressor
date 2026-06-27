@@ -647,6 +647,17 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       opacity: 0.8;
     }
     .cell-json-preview { color: var(--vscode-descriptionForeground); font-style: italic; }
+    .html-preview {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-left: 3px solid var(--vscode-focusBorder, #007acc);
+      background: var(--vscode-textBlockQuote-background, rgba(255,255,255,0.05));
+      border-radius: 0 2px 2px 0;
+      line-height: 1.5;
+    }
+    .html-preview.hidden { display: none; }
+    .html-preview ul, .html-preview ol { margin: 4px 0; padding-left: 18px; }
+    .html-preview p { margin: 4px 0; }
   </style>
 </head>
 <body>
@@ -1101,6 +1112,8 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
                 copyToClipboard(JSON.stringify(parsed, null, 2), this);
               });
               actionsDiv.appendChild(copyPrettyBtn);
+            } else if (containsHtmlTags(cellText)) {
+              attachHtmlRenderToggle(cellText, valDiv, actionsDiv);
             } else {
               valDiv.textContent = cellText;
             }
@@ -1253,9 +1266,43 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
           valEl.textContent = rawVal === null ? 'null' : String(rawVal);
           row.appendChild(valEl);
 
+          if (typeof rawVal === 'string' && containsHtmlTags(rawVal)) {
+            attachHtmlRenderToggle(rawVal, valEl, row);
+          }
+
           tree.appendChild(row);
         });
         valueContainer.appendChild(tree);
+      }
+
+      function attachHtmlRenderToggle(rawText, valueContainer, actionsContainer) {
+        valueContainer.textContent = '';
+        const rawSpan = document.createElement('span');
+        rawSpan.textContent = rawText;
+        valueContainer.appendChild(rawSpan);
+
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'html-preview hidden';
+        valueContainer.appendChild(previewDiv);
+
+        const renderBtn = document.createElement('button');
+        renderBtn.className = 'btn-copy-cell';
+        renderBtn.textContent = 'Render HTML';
+        let showingHtml = false;
+        renderBtn.addEventListener('click', function() {
+          showingHtml = !showingHtml;
+          if (showingHtml) {
+            previewDiv.innerHTML = rawText;
+            previewDiv.classList.remove('hidden');
+            rawSpan.style.display = 'none';
+            renderBtn.textContent = 'Show raw';
+          } else {
+            previewDiv.classList.add('hidden');
+            rawSpan.style.display = '';
+            renderBtn.textContent = 'Render HTML';
+          }
+        });
+        actionsContainer.appendChild(renderBtn);
       }
 
       function copyToClipboard(text, button) {
@@ -1402,4 +1449,4 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-module.exports = { openSqliteViewer };
+module.exports = { openSqliteViewer, buildSqliteViewerHtml, escapeHtml };
