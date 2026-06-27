@@ -64,7 +64,7 @@
       "activitybar": [
         {
           "id": "token-budget-builder-sidebar",
-          "title": "Context Compressor",
+          "title": "Cabin Kit",
           "icon": "media/icon.svg"
         }
       ]
@@ -111,16 +111,16 @@
     "commands": [
       {
         "command": "token-budget-builder.countTokens",
-        "title": "Context Compressor: Count Tokens in File"
+        "title": "Cabin Kit: Count Tokens in File"
       },
       {
         "command": "token-budget-builder.selectModel",
-        "title": "Context Compressor: Select Model",
+        "title": "Cabin Kit: Select Model",
         "icon": "$(list-selection)"
       },
       {
         "command": "token-budget-builder.countFolderTokens",
-        "title": "Context Compressor: Count Tokens in Selection"
+        "title": "Cabin Kit: Count Tokens in Selection"
       },
       {
         "command": "token-budget-builder.addToContext",
@@ -149,7 +149,7 @@
       },
       {
         "command": "token-budget-builder.suggestRelatedFiles",
-        "title": "Context Compressor: Suggest Related Files",
+        "title": "Cabin Kit: Suggest Related Files",
         "icon": "$(type-hierarchy-sub)"
       },
       {
@@ -164,12 +164,12 @@
       },
       {
         "command": "token-budget-builder.newTemplate",
-        "title": "Context Compressor: New Template",
+        "title": "Cabin Kit: New Template",
         "icon": "$(add)"
       },
       {
         "command": "token-budget-builder.saveActiveDocumentAsTemplate",
-        "title": "Context Compressor: Save as Template",
+        "title": "Cabin Kit: Save as Template",
         "icon": "$(save)"
       },
       {
@@ -193,29 +193,29 @@
       },
       {
         "command": "token-budget-builder.filterLines",
-        "title": "Context Compressor: Keep Matching Lines"
+        "title": "Cabin Kit: Keep Matching Lines"
       },
       {
         "command": "token-budget-builder.filterLinesInverse",
-        "title": "Context Compressor: Remove Matching Lines"
+        "title": "Cabin Kit: Remove Matching Lines"
       },
       {
         "command": "token-budget-builder.filterLinesFromSelection",
-        "title": "Context Compressor: Filter from Selection"
+        "title": "Cabin Kit: Filter from Selection"
       },
       {
         "command": "token-budget-builder.setContextLines",
-        "title": "Context Compressor: Set Context Lines"
+        "title": "Cabin Kit: Set Context Lines"
       },
       {
         "command": "token-budget-builder.saveFilterResult",
         "title": "Save Filter Result to File",
-        "category": "Context Compressor"
+        "category": "Cabin Kit"
       },
       {
         "command": "token-budget-builder.clearFilterHistory",
         "title": "Clear Filter History",
-        "category": "Context Compressor"
+        "category": "Cabin Kit"
       },
       {
         "command": "token-budget-builder.openSqliteViewer",
@@ -225,7 +225,7 @@
       {
         "command": "token-budget-builder.openTeamTracker",
         "title": "Open Team Board",
-        "category": "Context Compressor",
+        "category": "Cabin Kit",
         "icon": "$(organization)"
       }
     ],

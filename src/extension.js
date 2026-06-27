@@ -289,8 +289,8 @@ async function notifyIfUpdated(context) {
   if (previousVersion === currentVersion) return;
   await context.globalState.update(GLOBAL_STATE_VERSION_KEY, currentVersion);
   const message = previousVersion === undefined
-    ? `Token Budget Builder installed. Reload window to activate it.`
-    : `Token Budget Builder updated to v${currentVersion}. Reload window to apply changes.`;
+    ? `Cabin Kit installed. Reload window to activate it.`
+    : `Cabin Kit updated to v${currentVersion}. Reload window to apply changes.`;
   const action = await vscode.window.showInformationMessage(message, RELOAD_NOW_LABEL);
   if (action === RELOAD_NOW_LABEL) {
     vscode.commands.executeCommand(RELOAD_WINDOW_COMMAND);
