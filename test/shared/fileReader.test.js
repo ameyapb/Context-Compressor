@@ -19,8 +19,8 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.apply(this, arguments);
 };
 
-delete require.cache[require.resolve('../src/fileReader')];
-const { readFileAsText } = require('../src/fileReader');
+delete require.cache[require.resolve('../../src/shared/fileReader')];
+const { readFileAsText } = require('../../src/shared/fileReader');
 
 Module._load = originalLoad;
 

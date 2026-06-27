@@ -9,7 +9,7 @@ const {
   matchesGitignorePattern,
   isIgnoredByGitignorePatterns,
   loadGitignorePatterns,
-} = require('../src/gitignoreFilter');
+} = require('../../src/shared/gitignoreFilter');
 
 describe('parseGitignoreContent', () => {
   it('strips comment lines', () => {

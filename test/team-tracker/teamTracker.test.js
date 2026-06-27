@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const {
   TEAM_TRACKER_VIEW_ID,
   TEAM_STATE_GLOBAL_KEY,
-} = require('../src/teamTracker');
+} = require('../../src/team-tracker/teamTracker');
 
 describe('TEAM_TRACKER_VIEW_ID', () => {
   it('is a non-empty string', () => {

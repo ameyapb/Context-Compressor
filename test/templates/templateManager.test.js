@@ -7,7 +7,7 @@ const {
   getAllTemplates,
   saveTemplate,
   deleteTemplate,
-} = require('../src/templateManager');
+} = require('../../src/templates/templateManager');
 
 function makeStorage(initial = {}) {
   let store = { ...initial };

@@ -8,7 +8,7 @@ const {
   escapePatternLiteral,
   parseFilterHeader,
   buildFilterHeader,
-} = require('../src/logFilter');
+} = require('../../src/filter/logFilter');
 
 describe('FILTER_HEADER_TAG constant', () => {
   it('is a non-empty string', () => {

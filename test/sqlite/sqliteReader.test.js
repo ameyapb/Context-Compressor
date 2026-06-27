@@ -10,7 +10,7 @@ const {
   closeDatabase,
   InvalidSqliteDatabaseError,
   INVALID_SQLITE_DATABASE_ERROR,
-} = require('../src/sqliteReader');
+} = require('../../src/sqlite/sqliteReader');
 
 let SQL = null;
 
@@ -18,7 +18,7 @@ async function getSql() {
   if (!SQL) {
     const initSqlJs = require('sql.js');
     SQL = await initSqlJs({
-      locateFile: (file) => path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file),
+      locateFile: (file) => path.join(__dirname, '..', '..', 'node_modules', 'sql.js', 'dist', file),
     });
   }
   return SQL;

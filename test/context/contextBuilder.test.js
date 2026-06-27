@@ -33,13 +33,13 @@ const vscodeMock = {
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === 'vscode') return vscodeMock;
-  if (request === './fileReader') return { readFileAsText: (uri) => mockReadFileAsText(uri) };
+  if (request === '../shared/fileReader') return { readFileAsText: (uri) => mockReadFileAsText(uri) };
   return originalLoad.apply(this, arguments);
 };
 
 // Clear both modules from cache so they load fresh with our mocks.
-delete require.cache[require.resolve('../src/contextBuilder')];
-const fileReaderCachePath = require.resolve('../src/fileReader');
+delete require.cache[require.resolve('../../src/context/contextBuilder')];
+const fileReaderCachePath = require.resolve('../../src/shared/fileReader');
 delete require.cache[fileReaderCachePath];
 
 const {
@@ -58,7 +58,7 @@ const {
   handleCheckboxStateChange,
   assemblePromptText,
   isFileInContext,
-} = require('../src/contextBuilder');
+} = require('../../src/context/contextBuilder');
 
 Module._load = originalLoad;
 

@@ -29,8 +29,8 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.apply(this, arguments);
 };
 
-delete require.cache[require.resolve('../src/logFilterContentProvider')];
-const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('../src/logFilterContentProvider');
+delete require.cache[require.resolve('../../src/filter/logFilterContentProvider')];
+const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('../../src/filter/logFilterContentProvider');
 
 describe('LOG_FILTER_SCHEME constant', () => {
   it('equals "line-filter"', () => {

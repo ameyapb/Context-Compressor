@@ -9,7 +9,7 @@ const {
   createLink,
   nextIdFromCollection,
   resolveInitialState,
-} = require('../src/teamTrackerState');
+} = require('../../src/team-tracker/teamTrackerState');
 
 describe('MEMBER_COLORS', () => {
   it('is a non-empty array of hex color strings', () => {

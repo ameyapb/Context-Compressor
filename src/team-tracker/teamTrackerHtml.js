@@ -1144,7 +1144,7 @@ document.getElementById('memberLinkUrl').addEventListener('keydown', function(e)
 });
 
 renderAll();
-</script>`;
+<\/script>`;
 }
 
 function buildTeamTrackerPanelHtml(nonce, rawState) {

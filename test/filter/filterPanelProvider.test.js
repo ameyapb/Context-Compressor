@@ -25,12 +25,12 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.apply(this, arguments);
 };
 
-delete require.cache[require.resolve('../src/filterPanelProvider')];
+delete require.cache[require.resolve('../../src/filter/filterPanelProvider')];
 const {
   buildFilterState,
   FilterSourceItem, CONTEXT_VALUE_FILTER_SOURCE,
   FilterHistoryGroupItem, CONTEXT_VALUE_FILTER_HISTORY_GROUP,
-} = require('../src/filterPanelProvider');
+} = require('../../src/filter/filterPanelProvider');
 
 Module._load = originalLoad;
 

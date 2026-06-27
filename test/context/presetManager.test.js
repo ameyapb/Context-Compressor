@@ -8,7 +8,7 @@ const {
   savePreset,
   deletePreset,
   derivePresetNameSuggestion,
-} = require('../src/presetManager');
+} = require('../../src/context/presetManager');
 
 function makeStorage(initial = {}) {
   let store = { ...initial };

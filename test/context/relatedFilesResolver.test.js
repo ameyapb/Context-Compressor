@@ -6,7 +6,7 @@ const {
   extractRelativeImportSpecifiers,
   buildCandidatePaths,
   buildTestCandidatePaths,
-} = require('../src/relatedFilesResolver');
+} = require('../../src/context/relatedFilesResolver');
 
 describe('extractRelativeImportSpecifiers', () => {
   describe('JavaScript / TypeScript', () => {

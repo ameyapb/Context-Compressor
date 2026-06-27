@@ -887,7 +887,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
         } else if (cell && typeof cell === 'object' && cell.__type === 'blob') {
           const s = document.createElement('span');
           s.className = 'blob-value';
-          s.textContent = '[blob · ' + formatBytes(cell.size) + ']';
+          s.textContent = '[blob \xb7 ' + formatBytes(cell.size) + ']';
           td.appendChild(s);
         } else {
           const text = String(cell);
@@ -947,7 +947,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
 
         const clearAllBtn = document.createElement('button');
         clearAllBtn.className = 'btn-clear-all';
-        clearAllBtn.textContent = '× all';
+        clearAllBtn.textContent = '\xd7 all';
         clearAllBtn.addEventListener('click', clearAllFilters);
         elChipsRow.appendChild(clearAllBtn);
       }
@@ -1081,7 +1081,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
           } else if (cell && typeof cell === 'object' && cell.__type === 'blob') {
             const s = document.createElement('span');
             s.className = 'blob-value';
-            s.textContent = '[binary data · ' + formatBytes(cell.size) + ']';
+            s.textContent = '[binary data \xb7 ' + formatBytes(cell.size) + ']';
             valDiv.appendChild(s);
             if (cell.hex) {
               const copyHexBtn = document.createElement('button');
@@ -1437,7 +1437,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
 
       renderAll();
     })();
-  </script>
+  <\/script>
 </body>
 </html>`;
 }

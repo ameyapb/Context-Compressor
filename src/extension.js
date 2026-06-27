@@ -1,10 +1,10 @@
 const vscode = require('vscode');
 const path = require('path');
 const crypto = require('crypto');
-const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } = require('./models');
-const { extractRelativeImportSpecifiers, buildCandidatePaths, buildTestCandidatePaths } = require('./relatedFilesResolver');
-const { collectFileUris, countTokensInUris } = require('./folderCounter');
-const { loadGitignorePatterns } = require('./gitignoreFilter');
+const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } = require('./shared/models');
+const { extractRelativeImportSpecifiers, buildCandidatePaths, buildTestCandidatePaths } = require('./context/relatedFilesResolver');
+const { collectFileUris, countTokensInUris } = require('./context/folderCounter');
+const { loadGitignorePatterns } = require('./shared/gitignoreFilter');
 const {
   ContextFileTreeProvider,
   initialize: initializeContextBuilder,
@@ -21,24 +21,24 @@ const {
   getCompressionModeId,
   getCompressionModeLabel,
   isFileInContext,
-} = require('./contextBuilder');
-const { COMPRESSION_MODES } = require('./compressor');
+} = require('./context/contextBuilder');
+const { COMPRESSION_MODES } = require('./context/compressor');
 const {
   getAllPresets,
   savePreset,
   deletePreset,
   derivePresetNameSuggestion,
-} = require('./presetManager');
+} = require('./context/presetManager');
 const {
   getAllTemplates,
   saveTemplate,
   deleteTemplate,
   slugifyTemplateName,
-} = require('./templateManager');
-const { FilterPanelProvider } = require('./filterPanelProvider');
-const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('./logFilterContentProvider');
-const { openSqliteViewer } = require('./sqliteViewer');
-const { openTeamTrackerPanel } = require('./teamTracker');
+} = require('./templates/templateManager');
+const { FilterPanelProvider } = require('./filter/filterPanelProvider');
+const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('./filter/logFilterContentProvider');
+const { openSqliteViewer } = require('./sqlite/sqliteViewer');
+const { openTeamTrackerPanel } = require('./team-tracker/teamTracker');
 const {
   filterLines,
   FILTER_HEADER_TAG,
@@ -46,7 +46,7 @@ const {
   escapePatternLiteral,
   parseFilterHeader,
   buildFilterHeader,
-} = require('./logFilter');
+} = require('./filter/logFilter');
 
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';

@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { buildTeamTrackerPanelHtml } = require('../src/teamTrackerHtml');
+const { buildTeamTrackerPanelHtml } = require('../../src/team-tracker/teamTrackerHtml');
 
 const FAKE_NONCE = 'abc123def456';
 

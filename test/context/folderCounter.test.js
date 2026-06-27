@@ -26,13 +26,13 @@ const vscodeMock = {
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === 'vscode') return vscodeMock;
-  if (request === './fileReader') return { readFileAsText: (uri) => mockReadFileAsText(uri) };
+  if (request === '../shared/fileReader') return { readFileAsText: (uri) => mockReadFileAsText(uri) };
   return originalLoad.apply(this, arguments);
 };
 
-delete require.cache[require.resolve('../src/fileReader')];
-delete require.cache[require.resolve('../src/folderCounter')];
-const { collectFileUris, countTokensInUris, shouldExcludeFile } = require('../src/folderCounter');
+delete require.cache[require.resolve('../../src/shared/fileReader')];
+delete require.cache[require.resolve('../../src/context/folderCounter')];
+const { collectFileUris, countTokensInUris, shouldExcludeFile } = require('../../src/context/folderCounter');
 
 Module._load = originalLoad;
 

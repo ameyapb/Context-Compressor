@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { COMPRESSION_MODES, COMPRESSION_MODE_NONE, compress, getLanguageTag } = require('../src/compressor');
+const { COMPRESSION_MODES, COMPRESSION_MODE_NONE, compress, getLanguageTag } = require('../../src/context/compressor');
 
 describe('getLanguageTag', () => {
   it('maps JavaScript extensions to correct tags', () => {

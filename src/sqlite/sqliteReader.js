@@ -8,7 +8,7 @@ async function ensureSqlInitialized() {
   if (!_SQL) {
     const initSqlJs = require('sql.js');
     _SQL = await initSqlJs({
-      locateFile: (file) => path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file),
+      locateFile: (file) => path.join(__dirname, '../..', 'node_modules', 'sql.js', 'dist', file),
     });
   }
   return _SQL;

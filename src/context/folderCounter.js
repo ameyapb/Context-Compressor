@@ -2,8 +2,8 @@
 
 const path = require('path');
 const vscode = require('vscode');
-const { readFileAsText } = require('./fileReader');
-const { isIgnoredByGitignorePatterns } = require('./gitignoreFilter');
+const { readFileAsText } = require('../shared/fileReader');
+const { isIgnoredByGitignorePatterns } = require('../shared/gitignoreFilter');
 
 const IGNORED_DIRECTORY_NAMES = new Set([
   'node_modules', '.git', 'dist', 'build', 'out', '.vscode',

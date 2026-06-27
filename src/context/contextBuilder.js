@@ -1,7 +1,7 @@
 const vscode = require('vscode');
 const path = require('path');
 const { compress, getLanguageTag, COMPRESSION_MODE_NONE, COMPRESSION_MODES } = require('./compressor');
-const { readFileAsText } = require('./fileReader');
+const { readFileAsText } = require('../shared/fileReader');
 
 let contextFiles = [];
 let compressionModeId = COMPRESSION_MODE_NONE;
