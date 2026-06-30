@@ -1,9 +1,11 @@
 'use strict';
 
 const { MEMBER_COLORS, resolveInitialState } = require('./teamTrackerState');
+const { ACCENT_COLOR_VAR, buildSharedWebviewStyleBlock } = require('../shared/webviewTheme');
 
 function buildTeamStyles(nonce) {
   return `<style nonce="${nonce}">
+${buildSharedWebviewStyleBlock()}
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -17,11 +19,6 @@ body {
   display: flex;
   flex-direction: column;
 }
-
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.25); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.45); }
 
 .app-layout { display: flex; flex: 1; overflow: hidden; }
 
@@ -96,7 +93,7 @@ body {
   width: 100%;
 }
 
-.form-input:focus { border-color: var(--vscode-focusBorder, rgba(0,122,204,0.8)); }
+.form-input:focus { border-color: var(--vscode-focusBorder, ${ACCENT_COLOR_VAR}); }
 .form-input::placeholder { color: var(--vscode-input-placeholderForeground); }
 
 .form-actions {
@@ -476,7 +473,7 @@ body {
   transition: border-color 0.15s;
 }
 
-.notes-area:focus { border-color: var(--member-color, var(--vscode-focusBorder, rgba(0,122,204,0.8))); }
+.notes-area:focus { border-color: var(--member-color, var(--vscode-focusBorder, ${ACCENT_COLOR_VAR})); }
 .notes-area::placeholder { color: var(--vscode-input-placeholderForeground); font-style: italic; }
 
 .task-list { margin-bottom: 2px; }
@@ -573,7 +570,7 @@ body {
 .add-task-input::placeholder { color: rgba(128,128,128,0.4); font-style: italic; }
 
 .add-task-input:focus {
-  border-bottom-color: var(--member-color, var(--vscode-focusBorder, rgba(0,122,204,0.8)));
+  border-bottom-color: var(--member-color, var(--vscode-focusBorder, ${ACCENT_COLOR_VAR}));
   color: var(--vscode-foreground);
 }
 

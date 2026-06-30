@@ -4,6 +4,16 @@ const vscode = require('vscode');
 const path = require('path');
 const crypto = require('crypto');
 const { openDatabase, listTables, getTableSchema, getRows, closeDatabase } = require('./sqliteReader');
+const {
+  ACCENT_COLOR_VAR,
+  ACCENT_TINT_SUBTLE,
+  ACCENT_TINT_STRONG,
+  HIGHLIGHT_TINT_SUBTLE,
+  HIGHLIGHT_TINT_MEDIUM,
+  ACCENT_TEXT_ON_TINT,
+  HIGHLIGHT_TEXT_ON_TINT,
+  buildSharedWebviewStyleBlock,
+} = require('../shared/webviewTheme');
 
 const SQLITE_VIEWER_WEBVIEW_TYPE = 'sqliteViewer';
 const openPanels = new Map();
@@ -163,6 +173,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
   <title>${escapedFileName}</title>
   <style nonce="${nonce}">
+    ${buildSharedWebviewStyleBlock()}
     *, *::before, *::after { box-sizing: border-box; }
     body {
       margin: 0;
@@ -177,10 +188,11 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       overflow: hidden;
     }
     .header {
-      padding: 8px 12px;
-      font-weight: bold;
+      padding: var(--cabin-space-md) var(--cabin-space-lg);
+      font-weight: 700;
       font-size: 1.05em;
-      border-bottom: 1px solid var(--vscode-panel-border, #454545);
+      letter-spacing: 0.02em;
+      border-bottom: 2px solid ${ACCENT_COLOR_VAR};
       flex-shrink: 0;
       white-space: nowrap;
       overflow: hidden;
@@ -224,12 +236,14 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       padding: 5px 10px;
       cursor: pointer;
       user-select: none;
+      border-left: 3px solid transparent;
     }
     .table-item:hover {
       background: var(--vscode-list-hoverBackground);
     }
     .table-item.active {
-      background: var(--vscode-list-activeSelectionBackground);
+      background: ${ACCENT_TINT_SUBTLE};
+      border-left-color: ${ACCENT_COLOR_VAR};
       color: var(--vscode-list-activeSelectionForeground);
     }
     .table-item-name {
@@ -278,7 +292,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       outline: none;
     }
     .search-input:focus {
-      border-color: var(--vscode-focusBorder);
+      border-color: ${ACCENT_COLOR_VAR};
     }
     .btn-clear-search {
       background: none;
@@ -350,7 +364,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
     .spinner {
       width: 20px;
       height: 20px;
-      border: 2px solid var(--vscode-editor-foreground);
+      border: 2px solid ${ACCENT_COLOR_VAR};
       border-top-color: transparent;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
@@ -368,7 +382,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       z-index: 2;
       text-align: left;
       padding: 6px 10px;
-      border-bottom: 2px solid var(--vscode-panel-border, #454545);
+      border-bottom: 2px solid ${ACCENT_COLOR_VAR};
       white-space: nowrap;
       cursor: pointer;
       user-select: none;
@@ -384,11 +398,11 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       vertical-align: middle;
     }
     .col-type-badge[data-type="INT"],
-    .col-type-badge[data-type="INTEGER"] { background: #1e3a5f; color: #6cb6ff; }
-    .col-type-badge[data-type="TEXT"]    { background: #2d1f3d; color: #c586c0; }
+    .col-type-badge[data-type="INTEGER"] { background: ${ACCENT_TINT_STRONG}; color: ${ACCENT_TEXT_ON_TINT}; }
+    .col-type-badge[data-type="TEXT"]    { background: ${HIGHLIGHT_TINT_MEDIUM}; color: ${HIGHLIGHT_TEXT_ON_TINT}; }
     .col-type-badge[data-type="REAL"],
-    .col-type-badge[data-type="NUMERIC"] { background: #1a3020; color: #4ec994; }
-    .col-type-badge[data-type="BLOB"]    { background: #3d2400; color: #ce9178; }
+    .col-type-badge[data-type="NUMERIC"] { background: ${ACCENT_TINT_SUBTLE}; color: ${ACCENT_TEXT_ON_TINT}; }
+    .col-type-badge[data-type="BLOB"]    { background: ${HIGHLIGHT_TINT_SUBTLE}; color: ${HIGHLIGHT_TEXT_ON_TINT}; }
     .sort-indicator {
       margin-left: 4px;
       font-size: 0.85em;
@@ -411,8 +425,8 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       cursor: pointer;
     }
     .data-grid tr:hover td { background: var(--vscode-list-hoverBackground); }
-    .data-grid tr.selected td { background: var(--vscode-list-inactiveSelectionBackground); }
-    .data-grid tr:focus { outline: 1px solid var(--vscode-focusBorder); }
+    .data-grid tr.selected td { background: ${HIGHLIGHT_TINT_SUBTLE}; }
+    .data-grid tr:focus { outline: 1px solid ${ACCENT_COLOR_VAR}; }
     .null-value {
       font-style: italic;
       color: var(--vscode-descriptionForeground);
@@ -466,7 +480,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       bottom: 0;
       height: 35%;
       background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background, var(--vscode-editor-background)));
-      border-top: 2px solid var(--vscode-panel-border, #454545);
+      border-top: 2px solid ${ACCENT_COLOR_VAR};
       z-index: 20;
       display: flex;
       flex-direction: column;
@@ -480,7 +494,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       flex-shrink: 0;
       background: transparent;
     }
-    .drawer-resize-handle:hover { background: var(--vscode-focusBorder); }
+    .drawer-resize-handle:hover { background: ${ACCENT_COLOR_VAR}; }
     .drawer-header {
       display: flex;
       align-items: center;
@@ -625,7 +639,7 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
     }
     .btn-copy-cell:hover { background: var(--vscode-list-hoverBackground); }
     .data-grid tbody tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
-    .data-grid tr.selected td { background: var(--vscode-list-inactiveSelectionBackground) !important; }
+    .data-grid tr.selected td { background: ${HIGHLIGHT_TINT_SUBTLE} !important; }
     .drawer-json-tree { width: 100%; padding: 2px 0; }
     .drawer-json-row { display: flex; gap: 8px; padding: 2px 0; align-items: flex-start; }
     .drawer-json-key {
