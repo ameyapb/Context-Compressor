@@ -94,6 +94,26 @@
         }
       ]
     },
+    "colors": [
+      {
+        "id": "tokenBudgetBuilder.accentColor",
+        "description": "Accent color for interactive icons in Cabin Kit sidebar sections.",
+        "defaults": {
+          "dark": "#4a4e8f",
+          "light": "#4a4e8f",
+          "highContrast": "#4a4e8f"
+        }
+      },
+      {
+        "id": "tokenBudgetBuilder.highlightColor",
+        "description": "Highlight color for the active item in Cabin Kit sidebar sections.",
+        "defaults": {
+          "dark": "#a490c2",
+          "light": "#a490c2",
+          "highContrast": "#a490c2"
+        }
+      }
+    ],
     "viewsWelcome": [
       {
         "view": "token-budget-builder-templates",

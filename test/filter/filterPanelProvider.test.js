@@ -17,6 +17,7 @@ const vscodeMock = {
   },
   TreeItemCollapsibleState: { None: 0, Expanded: 2 },
   ThemeIcon: class { constructor(id) { this.id = id; } },
+  ThemeColor: class { constructor(id) { this.id = id; } },
 };
 
 const originalLoad = Module._load;

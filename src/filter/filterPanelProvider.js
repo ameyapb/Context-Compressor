@@ -2,6 +2,7 @@
 
 const vscode = require('vscode');
 const { parseFilterHeader } = require('./logFilter');
+const { ACCENT_COLOR_ID, HIGHLIGHT_COLOR_ID } = require('../shared/theme');
 
 const GROUP_ID_ACTIVE_FILTER = 'active-filter';
 const GROUP_ID_ACTIONS = 'actions';
@@ -33,7 +34,7 @@ class FilterGroupItem extends vscode.TreeItem {
   constructor(id, label, iconId) {
     super(label, vscode.TreeItemCollapsibleState.Expanded);
     this.id = id;
-    this.iconPath = new vscode.ThemeIcon(iconId);
+    this.iconPath = new vscode.ThemeIcon(iconId, new vscode.ThemeColor(ACCENT_COLOR_ID));
     this.contextValue = 'filterGroup';
   }
 }
@@ -69,7 +70,9 @@ class FilterHistoryGroupItem extends vscode.TreeItem {
     this.entry = entry;
     const pct = entry.total > 0 ? Math.round((entry.matched / entry.total) * 100) : 0;
     this.description = `${entry.matched.toLocaleString()} matched (${pct}%)`;
-    this.iconPath = new vscode.ThemeIcon(isActive ? 'eye' : 'filter');
+    this.iconPath = isActive
+      ? new vscode.ThemeIcon('eye', new vscode.ThemeColor(HIGHLIGHT_COLOR_ID))
+      : new vscode.ThemeIcon('filter');
     this.contextValue = CONTEXT_VALUE_FILTER_HISTORY_GROUP;
     this.command = { command: 'vscode.open', title: 'Open filter result', arguments: [entry.uri] };
     this.tooltip = `Source: ${entry.source}\nMatched: ${entry.matched.toLocaleString()} of ${entry.total.toLocaleString()} lines`;
@@ -79,7 +82,7 @@ class FilterHistoryGroupItem extends vscode.TreeItem {
 class FilterActionItem extends vscode.TreeItem {
   constructor(label, commandId, iconId, tooltip, description) {
     super(label, vscode.TreeItemCollapsibleState.None);
-    this.iconPath = new vscode.ThemeIcon(iconId);
+    this.iconPath = new vscode.ThemeIcon(iconId, new vscode.ThemeColor(ACCENT_COLOR_ID));
     this.tooltip = tooltip;
     this.description = description || '';
     this.command = { command: commandId, title: label };

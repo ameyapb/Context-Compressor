@@ -22,6 +22,9 @@ const vscodeMock = {
   ThemeIcon: class {
     constructor(id) { this.id = id; }
   },
+  ThemeColor: class {
+    constructor(id) { this.id = id; }
+  },
   MarkdownString: class {
     constructor() { this._value = ''; }
     appendMarkdown(s) { this._value += s; return this; }

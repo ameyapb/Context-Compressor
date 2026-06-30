@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const path = require('path');
 const { compress, getLanguageTag, COMPRESSION_MODE_NONE, COMPRESSION_MODES } = require('./compressor');
 const { readFileAsText } = require('../shared/fileReader');
+const { ACCENT_COLOR_ID } = require('../shared/theme');
 
 let contextFiles = [];
 let compressionModeId = COMPRESSION_MODE_NONE;
@@ -22,7 +23,7 @@ class ContextPanelActionItem extends vscode.TreeItem {
     this.id = itemId;
     this.description = description;
     this.tooltip = tooltip;
-    this.iconPath = new vscode.ThemeIcon(iconId);
+    this.iconPath = new vscode.ThemeIcon(iconId, new vscode.ThemeColor(ACCENT_COLOR_ID));
     this.command = { command: commandId, title: label };
   }
 }

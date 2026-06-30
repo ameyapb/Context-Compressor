@@ -5,6 +5,7 @@ const { SUPPORTED_MODELS, DEFAULT_MODEL_ID, getEncoderForModel, getModelById } =
 const { extractRelativeImportSpecifiers, buildCandidatePaths, buildTestCandidatePaths } = require('./context/relatedFilesResolver');
 const { collectFileUris, countTokensInUris } = require('./context/folderCounter');
 const { loadGitignorePatterns } = require('./shared/gitignoreFilter');
+const { ACCENT_COLOR_ID } = require('./shared/theme');
 const {
   ContextFileTreeProvider,
   initialize: initializeContextBuilder,
@@ -67,7 +68,7 @@ class PromptTemplateItem extends vscode.TreeItem {
   constructor(templateId, name, body) {
     super(name, vscode.TreeItemCollapsibleState.None);
     this.templateId = templateId;
-    this.iconPath = new vscode.ThemeIcon('note');
+    this.iconPath = new vscode.ThemeIcon('note', new vscode.ThemeColor(ACCENT_COLOR_ID));
     this.contextValue = 'promptTemplate';
     const tooltip = new vscode.MarkdownString();
     tooltip.appendText(name);
@@ -116,7 +117,7 @@ class SqliteDatabaseHistoryItem extends vscode.TreeItem {
     this.fsPath = fsPath;
     this.description = path.dirname(fsPath);
     this.tooltip = fsPath;
-    this.iconPath = new vscode.ThemeIcon('database');
+    this.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor(ACCENT_COLOR_ID));
     this.contextValue = 'sqliteDatabaseHistoryEntry';
     this.command = {
       command: 'token-budget-builder.openSqliteViewer',

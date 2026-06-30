@@ -3,9 +3,11 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { ACCENT_COLOR_ID, HIGHLIGHT_COLOR_ID } = require('../src/shared/theme');
 
 const ROOT = path.resolve(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 function resolvedPath(relativePath) {
   return path.join(ROOT, relativePath);
@@ -142,5 +144,33 @@ describe('package.json — contributes structure', () => {
   it('"activationEvents" is an empty array (VS Code 1.74+ infers events automatically)', () => {
     assert.ok(Array.isArray(manifest.activationEvents), '"activationEvents" must be an array');
     assert.equal(manifest.activationEvents.length, 0, '"activationEvents" must be empty — do not use "*" or explicit events');
+  });
+});
+
+describe('package.json — contributes.colors', () => {
+  const colors = manifest.contributes?.colors ?? [];
+
+  it('declares exactly the accent and highlight colors', () => {
+    const ids = colors.map((c) => c.id);
+    assert.deepEqual(new Set(ids), new Set([ACCENT_COLOR_ID, HIGHLIGHT_COLOR_ID]));
+  });
+
+  it('matches the ids exported from src/shared/theme.js (no drift)', () => {
+    const ids = new Set(colors.map((c) => c.id));
+    assert.ok(ids.has(ACCENT_COLOR_ID), `manifest is missing color id: ${ACCENT_COLOR_ID}`);
+    assert.ok(ids.has(HIGHLIGHT_COLOR_ID), `manifest is missing color id: ${HIGHLIGHT_COLOR_ID}`);
+  });
+
+  it('each color has a non-empty description and valid hex defaults', () => {
+    for (const color of colors) {
+      assert.equal(typeof color.description, 'string');
+      assert.ok(color.description.length > 0, `color "${color.id}" is missing a description`);
+      for (const variant of ['dark', 'light', 'highContrast']) {
+        assert.ok(
+          HEX_COLOR_PATTERN.test(color.defaults?.[variant] ?? ''),
+          `color "${color.id}" defaults.${variant} must be a 6-digit hex color`
+        );
+      }
+    }
   });
 });
