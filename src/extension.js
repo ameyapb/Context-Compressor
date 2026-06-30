@@ -38,6 +38,12 @@ const {
 const { FilterPanelProvider } = require('./filter/filterPanelProvider');
 const { LogFilterContentProvider, LOG_FILTER_SCHEME } = require('./filter/logFilterContentProvider');
 const { openSqliteViewer } = require('./sqlite/sqliteViewer');
+const {
+  getRecentDatabases,
+  addRecentDatabase,
+  removeRecentDatabase,
+  clearRecentDatabases,
+} = require('./sqlite/sqliteDatabaseHistory');
 const { openTeamTrackerPanel } = require('./team-tracker/teamTracker');
 const {
   filterLines,
@@ -48,6 +54,7 @@ const {
   buildFilterHeader,
 } = require('./filter/logFilter');
 
+const SQLITE_DATABASE_HISTORY_CONTEXT_KEY = 'token-budget-builder.hasSqliteDatabaseHistory';
 const GLOBAL_STATE_MODEL_KEY = 'token-budget-builder.selectedModelId';
 const GLOBAL_STATE_VERSION_KEY = 'token-budget-builder.installedVersion';
 const TEMPLATE_DRAFT_FILENAME = 'template-draft.md';
@@ -96,6 +103,47 @@ class PromptTemplateTreeProvider {
     return Object.entries(templates).map(
       ([id, { name, body }]) => new PromptTemplateItem(id, name, body)
     );
+  }
+
+  refresh() {
+    this._onDidChangeTreeData.fire(undefined);
+  }
+}
+
+class SqliteDatabaseHistoryItem extends vscode.TreeItem {
+  constructor(fsPath) {
+    super(path.basename(fsPath), vscode.TreeItemCollapsibleState.None);
+    this.fsPath = fsPath;
+    this.description = path.dirname(fsPath);
+    this.tooltip = fsPath;
+    this.iconPath = new vscode.ThemeIcon('database');
+    this.contextValue = 'sqliteDatabaseHistoryEntry';
+    this.command = {
+      command: 'token-budget-builder.openSqliteViewer',
+      title: 'Open Database File',
+      arguments: [vscode.Uri.file(fsPath)],
+    };
+  }
+}
+
+class SqliteDatabaseHistoryTreeProvider {
+  constructor() {
+    this._onDidChangeTreeData = new vscode.EventEmitter();
+    this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    this._storage = null;
+  }
+
+  initialize(storage) {
+    this._storage = storage;
+  }
+
+  getTreeItem(element) {
+    return element;
+  }
+
+  getChildren() {
+    if (!this._storage) return [];
+    return getRecentDatabases(this._storage).map((fsPath) => new SqliteDatabaseHistoryItem(fsPath));
   }
 
   refresh() {
@@ -202,6 +250,7 @@ let treeView;
 let contextFileTreeProvider;
 let templateTreeView;
 let promptTemplateTreeProvider;
+let sqliteDatabaseHistoryTreeProvider;
 let pendingTemplateSession = null;
 
 async function closeDraftEditorTabs(draftUri) {
@@ -329,6 +378,21 @@ function activate(context) {
   context.subscriptions.push(templateTreeView);
 
   templateTreeView.title = 'Prompt Templates';
+
+  sqliteDatabaseHistoryTreeProvider = new SqliteDatabaseHistoryTreeProvider();
+  sqliteDatabaseHistoryTreeProvider.initialize(context.globalState);
+  const sqliteHistoryTreeView = vscode.window.createTreeView('token-budget-builder-sqlite', {
+    treeDataProvider: sqliteDatabaseHistoryTreeProvider,
+    showCollapseAll: false,
+  });
+  context.subscriptions.push(sqliteHistoryTreeView);
+
+  function refreshSqliteDatabaseHistoryDisplay() {
+    sqliteDatabaseHistoryTreeProvider.refresh();
+    const hasHistory = getRecentDatabases(context.globalState).length > 0;
+    vscode.commands.executeCommand('setContext', SQLITE_DATABASE_HISTORY_CONTEXT_KEY, hasHistory);
+  }
+  refreshSqliteDatabaseHistoryDisplay();
 
   const logFilterContentProvider = new LogFilterContentProvider();
   context.subscriptions.push(
@@ -1248,10 +1312,33 @@ function activate(context) {
         if (!picked || picked.length === 0) return;
         resolvedUri = picked[0];
       }
-      await openSqliteViewer(context, resolvedUri);
+      const opened = await openSqliteViewer(context, resolvedUri);
+      if (opened) {
+        addRecentDatabase(context.globalState, resolvedUri.fsPath);
+        refreshSqliteDatabaseHistoryDisplay();
+      }
     }
   );
   context.subscriptions.push(openSqliteViewerCommand);
+
+  const removeSqliteDatabaseHistoryEntryCommand = vscode.commands.registerCommand(
+    'token-budget-builder.removeSqliteDatabaseHistoryEntry',
+    (item) => {
+      if (!item || !item.fsPath) return;
+      removeRecentDatabase(context.globalState, item.fsPath);
+      refreshSqliteDatabaseHistoryDisplay();
+    }
+  );
+  context.subscriptions.push(removeSqliteDatabaseHistoryEntryCommand);
+
+  const clearSqliteDatabaseHistoryCommand = vscode.commands.registerCommand(
+    'token-budget-builder.clearSqliteDatabaseHistory',
+    () => {
+      clearRecentDatabases(context.globalState);
+      refreshSqliteDatabaseHistoryDisplay();
+    }
+  );
+  context.subscriptions.push(clearSqliteDatabaseHistoryCommand);
 
   const clearFilterHistoryCommand = vscode.commands.registerCommand(
     'token-budget-builder.clearFilterHistory',

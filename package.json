@@ -223,6 +223,16 @@
         "icon": "$(database)"
       },
       {
+        "command": "token-budget-builder.removeSqliteDatabaseHistoryEntry",
+        "title": "Remove from Recent Databases",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "token-budget-builder.clearSqliteDatabaseHistory",
+        "title": "Clear Recent Databases",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "token-budget-builder.openTeamTracker",
         "title": "Open Team Board",
         "category": "Cabin Kit",
@@ -309,6 +319,11 @@
           "group": "navigation@1"
         },
         {
+          "command": "token-budget-builder.clearSqliteDatabaseHistory",
+          "when": "view == token-budget-builder-sqlite && token-budget-builder.hasSqliteDatabaseHistory",
+          "group": "navigation@2"
+        },
+        {
           "command": "token-budget-builder.openTeamTracker",
           "when": "view == token-budget-builder-team",
           "group": "navigation@1"
@@ -334,6 +349,11 @@
           "command": "token-budget-builder.removeTemplate",
           "when": "view == token-budget-builder-templates && viewItem == promptTemplate",
           "group": "inline@3"
+        },
+        {
+          "command": "token-budget-builder.removeSqliteDatabaseHistoryEntry",
+          "when": "view == token-budget-builder-sqlite && viewItem == sqliteDatabaseHistoryEntry",
+          "group": "inline"
         }
       ]
     }

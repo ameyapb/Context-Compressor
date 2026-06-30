@@ -15,7 +15,7 @@ async function openSqliteViewer(context, fileUri) {
   const existing = openPanels.get(filePath);
   if (existing) {
     existing.reveal();
-    return;
+    return true;
   }
 
   let fileBytes;
@@ -23,7 +23,7 @@ async function openSqliteViewer(context, fileUri) {
     fileBytes = await vscode.workspace.fs.readFile(fileUri);
   } catch (err) {
     vscode.window.showErrorMessage(`Could not read ${fileName}: ${err.message}`);
-    return;
+    return false;
   }
 
   let db;
@@ -33,7 +33,7 @@ async function openSqliteViewer(context, fileUri) {
     vscode.window.showErrorMessage(
       `Could not open ${fileName}. The file is not a valid SQLite database.`
     );
-    return;
+    return false;
   }
 
   const tables = listTables(db, { fastMode: true });
@@ -127,6 +127,8 @@ async function openSqliteViewer(context, fileUri) {
   if (tables.length > 0) {
     fillRowCountsAsync(db, tables, panel);
   }
+
+  return true;
 }
 
 async function fillRowCountsAsync(db, tables, panel) {
