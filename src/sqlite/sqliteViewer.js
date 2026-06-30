@@ -96,7 +96,7 @@ async function openSqliteViewer(context, fileUri) {
       } else if (message.type === 'selectTable') {
         try {
           const schema = getTableSchema(db, message.tableName);
-          const result = getRows(db, message.tableName, {});
+          const result = getRows(db, message.tableName, { search: message.search });
           panel.webview.postMessage({
             type: 'tableData',
             activeTable: message.tableName,
@@ -989,15 +989,13 @@ function buildSqliteViewerHtml(fileName, tables, activeTable, schema, rows, tota
       function selectTable(tableName) {
         if (tableName === state.activeTable) return;
         state.activeTable = tableName;
-        state.search = '';
         state.columnFilters = [];
         state.sort = null;
         state.page = 0;
         state.selectedRowIndex = null;
-        elSearchInput.value = '';
         closeDrawer();
         showLoading();
-        vscode.postMessage({ type: 'selectTable', tableName });
+        vscode.postMessage({ type: 'selectTable', tableName, search: state.search });
       }
 
       function toggleSort(colName) {

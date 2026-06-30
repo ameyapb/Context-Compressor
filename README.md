@@ -6,7 +6,7 @@ Assemble, compress, and copy multi-file AI context with a live token budget. No 
 
 **TL;DR:** pick files, see your token count live, compress if needed, copy a clean multi-file prompt. Everything stays on your machine.
 
-![Cabin Kit](media/screenshot-hero.png)
+![Cabin Kit](media/screenshot.png)
 
 ## Features at a glance
 
@@ -25,8 +25,6 @@ Assemble, compress, and copy multi-file AI context with a live token budget. No 
 To count tokens for a file or folder without adding it to context, right-click in the Explorer and choose **Count Tokens in Selection**.
 
 ## Context Builder
-
-![Context Files panel](media/screenshot-context.png)
 
 Tracks a token budget across every file you add, shows the live count in the status bar, and assembles the final prompt in one formatted block.
 
@@ -48,8 +46,6 @@ Tracks a token budget across every file you add, shows the live count in the sta
 Compression is applied per file at copy time. The token count in the sidebar reflects the compressed size.
 
 ## Filter large log files by regex pattern
-
-![Line Filter chain](media/screenshot-filter.png)
 
 Narrows any text file down to the lines you need without modifying the source. Open the Line Filter panel and click "Keep matching lines..." or "Remove matching lines...", or right-click any open file in the editor. Select text first and click "From selection" to use it as the pattern directly.
 
@@ -73,8 +69,6 @@ Results open as read-only tabs. Filter a result again to chain steps -- the hist
 Token counting uses `gpt-tokenizer` locally. The status bar tracks both the hard context window and a practical limit (12K to 30K) above which output quality tends to degrade. Claude and Gemini counts are approximations.
 
 ## Browse SQLite files in VS Code
-
-![SQLite Viewer](media/screenshot-sqlite.png)
 
 Right-click any `.sqlite` or `.db` file in the Explorer and choose **Open in SQLite Viewer**. Search across all non-binary columns, sort, apply per-column filters, and copy cell values. BLOB columns show byte size only. The viewer is read-only.
 

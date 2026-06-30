@@ -90,4 +90,16 @@ describe('buildSqliteViewerHtml', function () {
   it('renders with an empty table list without throwing', function () {
     assert.doesNotThrow(() => buildHtml({ tables: [], activeTable: null, schema: [], rows: [], totalRows: 0 }));
   });
+
+  it('carries the current search term when switching tables instead of clearing it', function () {
+    const html = buildHtml();
+    assert.ok(
+      html.includes("vscode.postMessage({ type: 'selectTable', tableName, search: state.search });"),
+      'selectTable must forward the current search term to the extension host'
+    );
+    assert.ok(
+      !html.includes("state.activeTable = tableName;\n        state.search = '';"),
+      'selectTable must not reset the search term when switching tables'
+    );
+  });
 });
